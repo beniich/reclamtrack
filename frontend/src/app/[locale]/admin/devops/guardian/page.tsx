@@ -1,5 +1,6 @@
-import { toast } from 'sonner';
 'use client';
+
+import { toast } from 'sonner';
 
 import { KPICard } from '@/components/shared/KPICard';
 import { Database, Shield, AlertTriangle, CheckCircle } from 'lucide-react';

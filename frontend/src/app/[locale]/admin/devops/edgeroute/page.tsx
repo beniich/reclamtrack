@@ -1,5 +1,6 @@
+'use client';
+
 import { toast } from 'sonner';
-'use client'
 
 import { RoleGuard } from '@/components/security/RoleGuard'
 import { MetricCard } from '@/components/ui/MetricCard'

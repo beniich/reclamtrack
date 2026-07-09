@@ -24,8 +24,7 @@
     "test": "npm run test --workspace=shared && npm run test --workspace=frontend && npm run test --workspace=backend",
     "test:backend": "npm run test --workspace=backend",
     "test:coverage": "npm run test --workspace=backend -- --coverage",
-    "check": "npm run lint && npm run type-check && npm run test",
-    "prepare": "husky"
+    "check": "npm run lint && npm run type-check && npm run test"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

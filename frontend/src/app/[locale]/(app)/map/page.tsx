@@ -75,7 +75,7 @@ export default function FleetMapPage() {
                     </div>
                     <div>
                         <h1 className="text-sm font-black uppercase tracking-tighter italic text-slate-900 dark:text-white flex items-center gap-2">
-                            Grid Intelligence <span className="text-primary dark:text-indigo-400">//</span> Fleet Tracker V3
+                            Grid Intelligence <span className="text-primary dark:text-indigo-400">|</span> Fleet Tracker V3
                         </h1>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

@@ -9,7 +9,6 @@ import { Truck, MapPin } from 'lucide-react';
 import { renderToString } from 'react-dom/server';
 
 // Correction des icônes par défaut de Leaflet
-// @ts-ignore
 if (typeof window !== 'undefined') {
     delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({

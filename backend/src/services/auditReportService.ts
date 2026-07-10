@@ -47,12 +47,12 @@ export class AuditReportService {
         const statsSheet = workbook.addWorksheet('Statistiques Brutes');
         statsSheet.addRow(['Secteur', 'Clé', 'Valeur']);
         Object.entries(reportData.details).forEach(([sector, data]) => {
-            Object.entries(data as any).forEach(([key, value]) => {
+            Object.entries(data as Record<string, unknown>).forEach(([key, value]) => {
                 statsSheet.addRow([sector, key, JSON.stringify(value)]);
             });
         });
 
-        const buffer = await workbook.xlsx.writeBuffer() as Buffer;
+        const buffer = await workbook.xlsx.writeBuffer() as unknown as Buffer;
         return buffer;
     }
 }

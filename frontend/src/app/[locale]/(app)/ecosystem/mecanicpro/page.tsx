@@ -118,7 +118,7 @@ export default function MecanicProDashboard() {
                    <div key={i} className="flex flex-col gap-2">
                       <div className="flex justify-between text-[11px]">
                          <span className="font-bold text-slate-300 uppercase italic">{comp.part}</span>
-                         <span className={comp.health < 20 ? 'text-red-500' : 'text-slate-500'}>{comp.status} // {comp.health}%</span>
+                         <span className={comp.health < 20 ? 'text-red-500' : 'text-slate-500'}>{comp.status} | {comp.health}%</span>
                       </div>
                       <div className="h-1 w-full bg-slate-800">
                         <motion.div 

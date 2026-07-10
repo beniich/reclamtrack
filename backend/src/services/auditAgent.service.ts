@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import AuditLog from '../models/AuditLog.js';
 import { logger } from '../utils/logger.js';
-import { User } from '../models/User.js';
 
 export class InternalAuditAgent {
     private static reportDir = path.join(process.cwd(), 'compliance_reports');
@@ -54,12 +53,12 @@ export class InternalAuditAgent {
 ## 2. Analyse de Sécurité (Anomalies)
 ### Tentatives de Brute-Force suspectées
 ${bruteForceAttempts.length > 0 ? 
-    bruteForceAttempts.map(a => `- IP: \`${a._id}\` (${a.count} tentatives)`).join('\n') : 
+    bruteForceAttempts.map(a => `- IP: \`${(a as { _id: string, count: number })._id}\` (${(a as { _id: string, count: number }).count} tentatives)`).join('\n') : 
     "✅ Aucune tentative groupée suspecte détectée."}
 
 ### Accès aux données confidentielles (ISO 27001)
 ${sensitiveAccess.length > 0 ? 
-    sensitiveAccess.map(s => `- **${(s.userId as any)?.name || 'Inconnu'}** a accédé à un actif critique le ${s.createdAt.toLocaleString()} (IP: ${s.ipAddress})`).join('\n') : 
+    sensitiveAccess.map(s => `- **${(s.userId as unknown as { name?: string })?.name || 'Inconnu'}** a accédé à un actif critique le ${s.timestamp.toLocaleString()} (IP: ${s.ipAddress})`).join('\n') : 
     "✅ Aucun accès anormal aux actifs restreints."}
 
 ## 3. Score de Conformité SOC 2

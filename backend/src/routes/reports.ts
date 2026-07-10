@@ -30,19 +30,23 @@ router.get('/complaints', asyncHandler(async (req, res) => {
     if (endDate) (query['createdAt'] as Record<string, unknown>)['$lte'] = new Date(endDate as string);
   }
 
-  const complaints = await Complaint.find(query).populate('assignedTo', 'name').sort({ createdAt: -1 });
+  const complaints = await Complaint.find(query).populate('technicianId', 'firstName lastName').sort({ createdAt: -1 });
 
-  const rows: ComplaintReportRow[] = complaints.map(c => ({
-    id: c._id.toString(),
-    title: c.title,
-    status: c.status,
-    priority: c.priority,
-    category: c.category,
-    createdAt: c.createdAt,
-    resolvedAt: c.resolvedAt,
-    resolutionTimeHours: c.resolutionTimeHours,
-    assignedTo: c.assignedTo ? (c.assignedTo as any).name : 'Non assigné',
-  }));
+  const rows: ComplaintReportRow[] = complaints.map(c => {
+    const tech = c.technicianId as unknown as { firstName?: string, lastName?: string };
+    const assignedToName = tech ? `${tech.firstName || ''} ${tech.lastName || ''}`.trim() : 'Non assigné';
+    return {
+      id: c._id.toString(),
+      title: c.title,
+      status: c.status,
+      priority: c.priority,
+      category: c.category,
+      createdAt: c.createdAt,
+      resolvedAt: c.status === 'résolue' || c.status === 'fermée' ? c.updatedAt : undefined,
+      resolutionTimeHours: c.status === 'résolue' || c.status === 'fermée' ? Math.round((c.updatedAt.getTime() - c.createdAt.getTime()) / (1000 * 60 * 60)) : undefined,
+      assignedTo: assignedToName,
+    };
+  });
 
   await generateComplaintsXLSX(res, rows);
 }));

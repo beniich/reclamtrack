@@ -208,9 +208,8 @@ export function HeatmapView({
     const exportHeatmapImage = () => {
         if (!mapRef.current) return;
 
-        // @ts-ignore
+        // @ts-expect-error: leaflet-image lacks typescript declarations
         import('leaflet-image').then((leafletImage) => {
-            // @ts-ignore
             leafletImage.default(mapRef.current, (err: any, canvas: HTMLCanvasElement) => {
                 if (err) {
                     console.error('Export error:', err);

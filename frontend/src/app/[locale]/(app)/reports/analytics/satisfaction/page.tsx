@@ -92,7 +92,7 @@ export default function SatisfactionDashboard() {
                             <span className="text-slate-400 text-lg">/ 5.0</span>
                         </div>
                         <div className="mt-4 flex gap-1">
-                            {[1, 2, 3, 4].map(i => <Star className="text-amber-400 text-xl" />)}
+                            {[1, 2, 3, 4].map(i => <Star key={i} className="text-amber-400 text-xl" />)}
                             <Star className="text-slate-200 dark:text-slate-700 text-xl" />
                         </div>
                     </div>

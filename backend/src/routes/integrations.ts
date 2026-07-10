@@ -19,9 +19,9 @@ router.use(requireAdmin);
  * Configure Slack integration via Webhook URL.
  */
 router.post('/slack', asyncHandler(async (req, res) => {
-  const { webhookUrl } = req.body;
+  const { webhookUrl } = req.body as Record<string, unknown>;
   // In a real implementation, save to DB associated with the organization
-  successResponse(res, { message: 'Slack integration configured successfully', webhookUrl });
+  await Promise.resolve(successResponse(res, { message: 'Slack integration configured successfully', webhookUrl }));
 }));
 
 /**
@@ -29,9 +29,9 @@ router.post('/slack', asyncHandler(async (req, res) => {
  * Configure Microsoft Teams integration via Webhook URL.
  */
 router.post('/teams', asyncHandler(async (req, res) => {
-  const { webhookUrl } = req.body;
+  const { webhookUrl } = req.body as Record<string, unknown>;
   // In a real implementation, save to DB associated with the organization
-  successResponse(res, { message: 'Teams integration configured successfully', webhookUrl });
+  await Promise.resolve(successResponse(res, { message: 'Teams integration configured successfully', webhookUrl }));
 }));
 
 export default router;

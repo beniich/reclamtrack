@@ -101,9 +101,9 @@ export function DataTable<T extends { id: string | number }>({
                                     {columns.map((column) => (
                                         <td key={String(column.key)} className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
                                             {column.render
-                                                // @ts-ignore
+                                                // @ts-expect-error: dynamic key access of column render function
                                                 ? column.render(row[column.key], row)
-                                                // @ts-ignore
+                                                // @ts-expect-error: dynamic key access of row object
                                                 : String(row[column.key])
                                             }
                                         </td>

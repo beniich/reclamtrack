@@ -1,4 +1,4 @@
-import { Client, DistanceMatrixResponse, TravelMode } from "@googlemaps/google-maps-services-js";
+import { Client, TravelMode } from "@googlemaps/google-maps-services-js";
 import { logger } from '../utils/logger.js';
 
 /**
@@ -28,7 +28,7 @@ export class GoogleMapsService {
                     origins: [origin],
                     destinations: [destination],
                     mode: TravelMode.driving,
-                    departure_time: 'now', // Prise en compte du trafic temps réel
+                    departure_time: new Date(), // Prise en compte du trafic temps réel
                     key: this.apiKey
                 }
             });

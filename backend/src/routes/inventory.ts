@@ -1,27 +1,27 @@
-import { Router } from 'express';
-import { body, param, query } from 'express-validator';
+import { Router, type Request, type Response, type NextFunction } from 'express';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { body } from 'express-validator';
 import { validator } from '../middleware/validator.js';
-import { authenticate as protect } from '../middleware/security.js';
-import { requireOrganization } from '../middleware/security.js';
+import { authenticate as protect, requireOrganization } from '../middleware/security.js';
 import InventoryItem from '../models/InventoryItem.js';
 import { Requisition, RequisitionStatus } from '../models/Requisition.js';
-import { eventBus } from '../services/eventBus.js';
+
 
 const router = Router();
 
 // Apply auth to all routes
-router.use(protect, requireOrganization);
+router.use(protect, asyncHandler(requireOrganization));
 
 /**
  * @route   GET /api/inventory/items
  * @desc    Get all inventory items (optionally filtered by category/search/lowStock)
  * @access  Private
  */
-router.get('/items', async (req: any, res, next) => {
+router.get('/items', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { q, category, lowStock } = req.query;
 
-        const filter: Record<string, any> = {};
+        const filter: Record<string, unknown> = {};
 
         if (q) {
             filter.$or = [
@@ -55,10 +55,10 @@ router.get('/items', async (req: any, res, next) => {
  * @desc    Search items (alias for /items with q)
  * @access  Private
  */
-router.get('/items/search', async (req: any, res, next) => {
+router.get('/items/search', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { q, category, lowStock } = req.query;
-        const filter: Record<string, any> = {};
+        const filter: Record<string, unknown> = {};
 
         if (q) {
             filter.$or = [
@@ -83,7 +83,7 @@ router.get('/items/search', async (req: any, res, next) => {
  * @desc    Get single item
  * @access  Private
  */
-router.get('/items/:id', async (req: any, res, next) => {
+router.get('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const item = await InventoryItem.findById(req.params.id);
         if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
@@ -104,7 +104,7 @@ router.post('/items', [
     body('category').optional().isString(),
     body('currentStock').optional().isNumeric(),
     body('minStockAlert').optional().isNumeric(),
-], validator, async (req: any, res, next) => {
+], validator, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const item = await InventoryItem.create(req.body);
         res.status(201).json({ success: true, data: item });
@@ -118,9 +118,9 @@ router.post('/items', [
  * @desc    Update item
  * @access  Private
  */
-router.put('/items/:id', async (req: any, res, next) => {
+router.put('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const item = await InventoryItem.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const item = await InventoryItem.findByIdAndUpdate(req.params.id, req.body as Record<string, unknown>, { new: true });
         if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
         res.json({ success: true, data: item });
     } catch (err) {
@@ -133,7 +133,7 @@ router.put('/items/:id', async (req: any, res, next) => {
  * @desc    Delete item
  * @access  Private
  */
-router.delete('/items/:id', async (req: any, res, next) => {
+router.delete('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await InventoryItem.findByIdAndDelete(req.params.id);
         res.json({ success: true, message: 'Item deleted' });
@@ -143,7 +143,7 @@ router.delete('/items/:id', async (req: any, res, next) => {
 });
 
 // Requisitions routes
-router.get('/requisitions', async (req: any, res, next) => {
+router.get('/requisitions', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const requisitions = await Requisition.find({ organizationId: req.organizationId })
             .populate('requesterId', 'name email')
@@ -155,13 +155,13 @@ router.get('/requisitions', async (req: any, res, next) => {
     }
 });
 
-router.post('/requisitions', async (req: any, res, next) => {
+router.post('/requisitions', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const reqData = {
-            ...req.body,
+            ...(req.body as Record<string, unknown>),
             organizationId: req.organizationId,
-            requesterId: req.user.id,
-            status: RequisitionStatus.PENDING_APPROVAL
+            requesterId: req.user!.id,
+            status: RequisitionStatus.PENDING
         };
         const requisition = await Requisition.create(reqData);
         res.status(201).json({ success: true, data: requisition });
@@ -170,11 +170,11 @@ router.post('/requisitions', async (req: any, res, next) => {
     }
 });
 
-router.put('/requisitions/:id/status', async (req: any, res, next) => {
+router.put('/requisitions/:id/status', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const reqItem = await Requisition.findOneAndUpdate(
             { _id: req.params.id, organizationId: req.organizationId },
-            { status: req.body.status, updatedAt: new Date() },
+            { status: (req.body as Record<string, unknown>).status, updatedAt: new Date() },
             { new: true }
         );
         res.json({ success: true, data: reqItem });

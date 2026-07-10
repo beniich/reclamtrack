@@ -36,48 +36,65 @@ export default function PricingPage() {
     const plans = [
         {
             id: "starter",
-            name: "Core Infrastructure",
-            price: "29",
-            description: "Essential protocols for emerging entities and small-scale operations.",
+            name: "Starter",
+            price: isYearly ? "41" : "49",
+            description: "Idéal pour TPE et auto-entrepreneurs. L'essentiel pour démarrer.",
             features: [
-                { text: "Centralized Complaint Ledger", included: true },
-                { text: "Real-time Priority Engine", included: true },
-                { text: "Standard Audit Logs", included: true },
-                { text: "Basic Notification Protocol", included: true },
-                { text: "Email Support", included: true },
+                { text: "Jusqu'à 5 utilisateurs", included: true },
+                { text: "1 Organisation", included: true },
+                { text: "Gestion des réclamations", included: true },
+                { text: "Gestion de base de l'inventaire", included: true },
+                { text: "Support par email", included: true },
             ],
-            buttonText: "Execute Starter",
-            popular: false
+            buttonText: "Commencer Starter",
+            popular: false,
+            subtext: isYearly ? "Facturé 492 € par an" : null
         },
         {
-            id: "professional",
-            name: "Pro Ecosystem",
-            price: isYearly ? "79" : "99",
-            description: "High-performance infrastructure for data-intensive urban management.",
+            id: "pro",
+            name: "Pro",
+            price: isYearly ? "124" : "149",
+            description: "Pour PME. Gérez plusieurs sites et obtenez des rapports détaillés.",
             features: [
-                { text: "Advanced Analytical Dashboard", included: true, bold: true },
-                { text: "Unlimited Team Segregation", included: true, bold: true },
-                { text: "Automated Dispatch Logic", included: true, bold: true },
-                { text: "Premium API Integration", included: true, bold: true },
-                { text: "Priority 24/7 Support", included: true, bold: true },
+                { text: "Jusqu'à 25 utilisateurs", included: true },
+                { text: "Jusqu'à 3 Organisations", included: true },
+                { text: "Tous les modules opérationnels", included: true },
+                { text: "Rapports & Analytics avancés", included: true, bold: true },
+                { text: "Accès API Public", included: true, bold: true },
             ],
-            buttonText: "Deploy Pro",
+            buttonText: "Déployer Pro",
             popular: true,
-            subtext: isYearly ? "Billed $948 annually" : null
+            subtext: isYearly ? "Facturé 1 488 € par an" : null
+        },
+        {
+            id: "business",
+            name: "Business",
+            price: isYearly ? "291" : "349",
+            description: "Pour les grandes PME avec besoins IA et intégrations complexes.",
+            features: [
+                { text: "Jusqu'à 100 utilisateurs", included: true },
+                { text: "Organisations illimitées", included: true },
+                { text: "IA AuditAX (Conformité)", included: true, bold: true },
+                { text: "IA FleetAgent (Optimisation)", included: true, bold: true },
+                { text: "Authentification SSO", included: true },
+            ],
+            buttonText: "Choisir Business",
+            popular: false,
+            subtext: isYearly ? "Facturé 3 492 € par an" : null
         },
         {
             id: "enterprise",
-            name: "Universal Protocol",
-            price: "Custom",
-            description: "Custom-scaled architecture for global governments and massive scale.",
+            name: "Enterprise",
+            price: "Sur devis",
+            description: "Déploiement sur-mesure pour les grands comptes et multinationales.",
             features: [
-                { text: "Dedicated Physical Node", included: true },
-                { text: "Infinite Scalability Buffer", included: true },
-                { text: "Military-Grade Redundancy", included: true },
-                { text: "On-site Deployment Option", included: true },
-                { text: "Dedicated Success Architect", included: true },
+                { text: "Utilisateurs illimités", included: true },
+                { text: "Déploiement dédié", included: true },
+                { text: "Marque blanche (White-label)", included: true, bold: true },
+                { text: "SLA Garanti (99.9%)", included: true, bold: true },
+                { text: "Support prioritaire 24/7", included: true, bold: true },
             ],
-            buttonText: "Contact Sales",
+            buttonText: "Contacter les ventes",
             popular: false
         }
     ];
@@ -135,7 +152,7 @@ export default function PricingPage() {
                             >
                                 Yearly
                                 <span className="absolute -top-3 -right-3 bg-green-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-bounce">
-                                    -20%
+                                    2 mois offerts
                                 </span>
                             </button>
                         </div>
@@ -144,7 +161,7 @@ export default function PricingPage() {
 
                 {/* Pricing Grid */}
                 <section className="py-24 px-6 max-w-7xl mx-auto relative">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {plans.map((plan, idx) => (
                             <div
                                 key={idx}

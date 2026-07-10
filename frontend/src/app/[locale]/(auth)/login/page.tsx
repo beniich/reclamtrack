@@ -5,8 +5,8 @@ import { Link } from '@/i18n/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { GoogleLogin } from '@react-oauth/google';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Mail, Lock, LogIn } from 'lucide-react';
 
@@ -20,7 +20,14 @@ export default function LoginPage() {
     const locale = useLocale();
     const router = useRouter();
 
+    const searchParams = useSearchParams();
     const { login, googleLogin } = useAuthStore();
+
+    useEffect(() => {
+        if (searchParams.get('demo') === 'true') {
+            handleQuickLogin('admin');
+        }
+    }, [searchParams]);
 
 
     const handleLogin = async (e: React.FormEvent) => {

@@ -24,7 +24,7 @@ export function Logo({ className = "", size = 32, showText = false, variant = 'v
                 
                 {/* Updated Logo Image */}
                 <img 
-                    src="/assets/logo/logo.png" 
+                    src="/logo.svg" 
                     alt="ReclamTrack Pro Logo"
                     className="relative z-10 w-full h-full object-contain drop-shadow-[0_0_12px_rgba(139,92,246,0.5)]"
                 />

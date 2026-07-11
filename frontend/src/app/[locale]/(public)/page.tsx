@@ -95,12 +95,12 @@ export default async function LandingPage() {
                                     {tLanding('bookDemo')}
                                 </Button>
                             </Link>
-                            <a href="/login?demo=true" className="w-full sm:w-auto">
+                            <Link href="/login?demo=true" className="w-full sm:w-auto">
                                 <Button type="button" variant="outline" size="xl" className="w-full gap-3 border-primary text-primary hover:bg-primary/10">
                                     Essayer la Démo (Sandbox)
                                     <span className="material-symbols-outlined text-base">rocket_launch</span>
                                 </Button>
-                            </a>
+                            </Link>
                         </div>
 
                         {/* Network Illustration */}

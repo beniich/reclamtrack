@@ -26,7 +26,7 @@ export function AnimatedLogo({ className = "", size = 40 }: AnimatedLogoProps) {
       >
         {/* Base Logo Image (The new one we just copied) */}
         <img 
-          src="/assets/logo/logo.png" 
+          src="/logo.svg" 
           alt="ReclamTrack Logo" 
           className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(139,92,246,0.3)]"
         />

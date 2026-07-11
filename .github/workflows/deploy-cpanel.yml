@@ -1,0 +1,100 @@
+name: Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - main # Change this to the branch you want to deploy from
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build Shared
+        run: npm run build -w shared
+
+      - name: Build Backend
+        run: npm run build -w backend
+
+      - name: Build Frontend
+        run: npm run build -w frontend
+
+      - name: Prepare Deployment Artifacts
+        run: |
+          mkdir -p deploy
+          # Copy root package files
+          cp package.json package-lock.json deploy/
+          
+          # Copy shared
+          mkdir -p deploy/shared
+          cp -r shared/dist deploy/shared/
+          cp shared/package.json deploy/shared/
+          
+          # Copy backend
+          mkdir -p deploy/backend
+          cp -r backend/dist deploy/backend/
+          cp backend/package.json deploy/backend/
+          # Create a generic entry file for cPanel Passenger
+          echo "import './dist/index.js';" > deploy/backend/app.js
+          
+          # Copy frontend standalone output
+          # Next.js standalone output contains everything needed to run
+          cp -r frontend/.next/standalone deploy/frontend-standalone
+          cp -r frontend/.next/static deploy/frontend-standalone/frontend/.next/static
+          cp -r frontend/public deploy/frontend-standalone/frontend/public
+          
+          # Archive for transfer
+          cd deploy
+          tar -czf deploy.tar.gz .
+
+      - name: Upload to cPanel via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          port: ${{ secrets.CPANEL_PORT }}
+          source: "deploy/deploy.tar.gz"
+          target: "${{ secrets.DEPLOY_PATH }}"
+          strip_components: 1
+
+      - name: Execute Post-Deployment Script via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CPANEL_HOST }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          port: ${{ secrets.CPANEL_PORT }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            
+            # Extract the uploaded archive
+            tar -xzf deploy.tar.gz
+            rm deploy.tar.gz
+            
+            # Ensure correct Node.js version is used by cPanel (adjust path if needed)
+            # source /home/${{ secrets.CPANEL_USERNAME }}/nodevenv/your-app/22/bin/activate || true
+            
+            # Install production dependencies only at the root
+            npm ci --production --ignore-scripts
+            
+            # Restart Passenger apps (assuming standard cPanel tmp/restart.txt)
+            mkdir -p backend/tmp
+            touch backend/tmp/restart.txt
+            
+            mkdir -p frontend-standalone/tmp
+            touch frontend-standalone/tmp/restart.txt
+            
+            echo "Deployment completed successfully!"

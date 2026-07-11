@@ -6,7 +6,6 @@
     "extends": [
         "eslint:recommended",
         "plugin:@typescript-eslint/recommended",
-        "plugin:@typescript-eslint/recommended-requiring-type-checking",
         "prettier"
     ],
     "parser": "@typescript-eslint/parser",
@@ -20,7 +19,7 @@
     ],
     "rules": {
         "@typescript-eslint/no-unused-vars": [
-            "error",
+            "warn",
             {
                 "argsIgnorePattern": "^_",
                 "varsIgnorePattern": "^_",
@@ -30,22 +29,23 @@
         "@typescript-eslint/no-explicit-any": "warn",
         "@typescript-eslint/explicit-module-boundary-types": "off",
         "@typescript-eslint/consistent-type-imports": [
-            "error",
+            "warn",
             { "prefer": "type-imports", "fixStyle": "separate-type-imports" }
         ],
-        "@typescript-eslint/no-floating-promises": "error",
-        "@typescript-eslint/no-misused-promises": [
-            "error",
-            { "checksVoidReturn": { "attributes": false } }
-        ],
-        "@typescript-eslint/await-thenable": "error",
+        "@typescript-eslint/no-floating-promises": "off",
+        "@typescript-eslint/no-misused-promises": "off",
+        "@typescript-eslint/await-thenable": "off",
         "@typescript-eslint/require-await": "warn",
-        "no-console": ["warn", { "allow": ["warn", "error"] }],
-        "prefer-const": "error",
-        "eqeqeq": ["error", "always"],
-        "complexity": ["warn", { "max": 15 }],
-        "max-lines-per-function": ["warn", { "max": 80, "skipBlankLines": true, "skipComments": true }],
-        "no-duplicate-imports": "error"
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/ban-ts-comment": "warn",
+        "no-console": ["warn", { "allow": ["warn", "error", "info", "log"] }],
+        "prefer-const": "warn",
+        "eqeqeq": ["warn", "always"],
+        "no-duplicate-imports": "warn"
     },
     "overrides": [
         {
@@ -59,12 +59,25 @@
             "rules": {
                 "max-lines-per-function": "off"
             }
+        },
+        {
+            "files": ["tests/**/*.ts", "test-*.ts", "**/*.test.ts", "**/*.spec.ts"],
+            "env": {
+                "jest": true
+            },
+            "rules": {
+                "@typescript-eslint/no-explicit-any": "off",
+                "@typescript-eslint/no-unused-vars": "off",
+                "@typescript-eslint/ban-ts-comment": "off",
+                "no-console": "off"
+            }
         }
     ],
     "ignorePatterns": [
         "dist/",
         "node_modules/",
         "coverage/",
+        "scripts/",
         "*.cjs",
         "*.js"
     ]

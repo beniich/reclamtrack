@@ -7,14 +7,14 @@
 
 import { Membership } from '../models/Membership.js';
 import { Organization } from '../models/Organization.js';
-import type {
-  ISubscription,
-  PlanName} from '../models/Subscription.js';
 import {
   PLAN_FEATURES,
   PLAN_MAX_USERS,
   Subscription,
 } from '../models/Subscription.js';
+import type {
+  ISubscription,
+  PlanName} from '../models/Subscription.js';
 import { SubscriptionLimitError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 

@@ -195,7 +195,7 @@ router.put('/requisitions/:id/status', async (req: Request, res: Response, next:
         reqItem.history.push({
             status: status as RequisitionStatus,
             action: 'Status updated to ' + status,
-            userId: req.user!.id, // Need to make sure req.user is typed or casted
+            userId: req.user!.id as any, // Need to make sure req.user is typed or casted
             comment: comment || '',
             timestamp: new Date()
         });

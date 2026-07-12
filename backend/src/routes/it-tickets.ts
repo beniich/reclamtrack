@@ -174,6 +174,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     if (itStaff) {
         ticket.assignedTo = itStaff._id;
         ticket.status = 'assigned';
+        ticket.updates = ticket.updates || [];
         ticket.updates.push({
             timestamp: new Date(),
             userId: itStaff._id,

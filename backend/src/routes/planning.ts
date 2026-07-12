@@ -126,8 +126,8 @@ router.patch(
       // Track timesheets (suivi des heures)
       if (status === 'completed' && existing.status !== 'completed') {
           // Compute total hours based on actual start/end if available, else planned start/end
-          const s = new Date(existing.actualStart || existing.start).getTime();
-          const e = new Date(existing.actualEnd || existing.end || Date.now()).getTime();
+          const s = new Date((existing as any).actualStart || existing.start).getTime();
+          const e = new Date((existing as any).actualEnd || existing.end || Date.now()).getTime();
           const totalHours = (e - s) / (1000 * 60 * 60);
           req.body.totalHours = totalHours;
       }

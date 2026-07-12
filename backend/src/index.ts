@@ -59,10 +59,6 @@ import maintenancePlanRoutes from './routes/maintenancePlans.js';
 import mroRoutes from './routes/mro.js';
 import auditAgentRoutes from './routes/auditAgent.js';
 import aiRoutes from './routes/ai.js';
-import leaveRoutes from './routes/leave.js';
-import staffRoutes from './routes/staff.js';
-import eventsRoutes from './routes/events.js';
-import rosterRoutes from './routes/roster.js';
 
 // IT Administration Module Routes
 import adRoutes from './routes/ad.js';

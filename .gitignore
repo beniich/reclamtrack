@@ -41,6 +41,7 @@ docker-compose.override.yml
 *~
 
 # OS
+cpanel-build/
 .DS_Store
 Thumbs.db
 

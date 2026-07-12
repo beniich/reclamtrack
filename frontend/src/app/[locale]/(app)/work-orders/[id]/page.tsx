@@ -136,16 +136,15 @@ export default function WorkOrderDetailsPage() {
 
                     <div className="bg-white dark:bg-background rounded-[2rem] border border-slate-200 dark:border-border-dark p-6 shadow-sm">
                         <div className="pt-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Équipe Assignée</span>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Users className="w-4 h-4 text-slate-300" />
-                                    <span className="text-sm font-black">{wo.team}</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {wo.technicians.map((t, idx) => (
-                                        <span key={idx} className="text-[10px] bg-slate-800 px-2 py-1 rounded font-bold">{t}</span>
-                                    ))}
-                                </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Équipe Assignée</span>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Users className="w-4 h-4 text-slate-300" />
+                                <span className="text-sm font-black">{wo.team}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {wo.technicians.map((t, idx) => (
+                                    <span key={idx} className="text-[10px] bg-slate-800 px-2 py-1 rounded font-bold">{t}</span>
+                                ))}
                             </div>
                         </div>
                     </div>

@@ -14,6 +14,42 @@ const router = Router();
 router.use(authenticate);
 router.use(requireAdmin);
 
+import { createOrUpdateContact, getHubspotStatus } from '../services/hubspotService.js';
+
+/**
+ * GET /api/integrations/hubspot/status
+ * Vérifie le statut de la connexion HubSpot.
+ */
+router.get('/hubspot/status', asyncHandler(async (req, res) => {
+    const status = await getHubspotStatus();
+    res.json(successResponse(status));
+}));
+
+/**
+ * POST /api/integrations/hubspot/lead
+ * Capture un prospect et l'envoie vers HubSpot CRM.
+ */
+router.post('/hubspot/lead', asyncHandler(async (req, res) => {
+    const { email, firstname, lastname, company, linkedin_url, phone } = req.body;
+    
+    if (!email || !firstname) {
+        return res.status(400).json({ success: false, message: 'Email et prénom sont requis.' });
+    }
+
+    const result = await createOrUpdateContact({
+        email,
+        firstname,
+        lastname: lastname || '',
+        company,
+        linkedin_url,
+        phone,
+        lifecyclestage: 'lead'
+    });
+
+    res.json(successResponse(result, 'Lead synchronisé avec succès'));
+}));
+
+
 /**
  * POST /api/integrations/slack
  * Configure Slack integration via Webhook URL.

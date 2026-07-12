@@ -91,6 +91,7 @@ export function Sidebar() {
         {
             title: t('admin'),
             items: [
+                { label: 'Prospection (CRM)', href: '/marketing/prospects', icon: Briefcase, badge: 'HubSpot', badgeColor: 'bg-orange-500' },
                 { label: t('auditLogs'),    href: '/audit-logs',         icon: ShieldCheck },
                 { label: t('satisfaction'), href: '/feedback/satisfaction', icon: AlertTriangle },
                 { label: t('settings'),     href: '/settings',           icon: Settings },

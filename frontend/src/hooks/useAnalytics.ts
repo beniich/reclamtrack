@@ -27,6 +27,7 @@ export interface PerformanceData {
     firstResponseTime: string;
     completionRate: number;
     onTimeRate: number;
+    slaCompliance?: number;
     byCategory: { category: string; completionRate: number; avgTime: string }[];
 }
 

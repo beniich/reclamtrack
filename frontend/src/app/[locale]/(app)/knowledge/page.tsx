@@ -1,110 +1,72 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight, Download, Plus, MoreVertical, History, Timer, AlertTriangle } from 'lucide-react';
+import { Search, Phone, ChevronRight, Download, Plus, MoreVertical, History, Timer, AlertTriangle, BookOpen } from 'lucide-react';
+import api from '@/lib/api';
+import { toast } from 'react-hot-toast';
 
 // Types
 type SOPStatus = 'ACTIVE' | 'DRAFT' | 'REVIEW' | 'ARCHIVED';
 type SOPPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 interface SOP {
-    id: string;
+    _id: string;
+    id?: string;
     title: string;
-    description: string;
+    description?: string;
+    content: string;
     category: string;
-    status: SOPStatus;
-    priority: SOPPriority;
+    status?: SOPStatus;
+    priority?: SOPPriority;
     version: string;
-    duration: number; // minutes
-    reviewers: string[];
+    tags: string[];
+    views: number;
+    author: string;
+    createdAt: string;
 }
 
-// Mock Data
-const mockSOPs: SOP[] = [
-    {
-        id: '1',
-        title: 'Main Pipe Repair Protocol (High Pressure)',
-        description: 'Critical safety measures and sequence for handling structural failures in main water pipelines above 40 bar.',
-        category: 'Maintenance',
-        status: 'ACTIVE',
-        priority: 'URGENT',
-        version: '2.4',
-        duration: 45,
-        reviewers: ['https://ui-avatars.com/api/?name=Reviewer+1&background=0ea5e9&color=fff', 'https://ui-avatars.com/api/?name=Reviewer+2&background=10b981&color=fff']
-    },
-    {
-        id: '2',
-        title: 'Substation Cooling System Flush',
-        description: 'Routine procedure for annual descaling of secondary cooling loops in District 4-8 substations.',
-        category: 'Maintenance',
-        status: 'ACTIVE',
-        priority: 'MEDIUM',
-        version: '1.1',
-        duration: 120,
-        reviewers: ['https://ui-avatars.com/api/?name=Reviewer+3&background=64748b&color=fff']
-    },
-    {
-        id: '3',
-        title: 'Tier 3 Complaint Escalation Matrix',
-        description: 'Detailed decision tree for escalating environmental impact complaints to senior legal department.',
-        category: 'Customer Service',
-        status: 'ACTIVE',
-        priority: 'HIGH',
-        version: '5.0',
-        duration: 10,
-        reviewers: ['https://ui-avatars.com/api/?name=Reviewer+4&background=d946ef&color=fff', 'https://ui-avatars.com/api/?name=Reviewer+5&background=ec4899&color=fff']
-    },
-    {
-        id: '4',
-        title: 'Bio-Hazard Containment Phase 1',
-        description: 'New draft for handling potential water source contamination events in suburban zones.',
-        category: 'Emergency Response',
-        status: 'DRAFT',
-        priority: 'HIGH',
-        version: '0.1',
-        duration: 0,
-        reviewers: []
-    },
-    {
-        id: '5',
-        title: 'Annual Safety Gear Inspection (OSHA)',
-        description: 'Mandatory compliance check procedure for all field-assigned PPE and electrical insulation kits.',
-        category: 'Compliance',
-        status: 'ACTIVE',
-        priority: 'MEDIUM',
-        version: '4.2',
-        duration: 180,
-        reviewers: ['https://ui-avatars.com/api/?name=Reviewer+6&background=cbd5e1&color=fff']
-    }
-];
-
 export default function KnowledgeBasePage() {
-    // State
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [sops, setSOPs] = useState<SOP[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Derived State
-    const filteredSOPs = useMemo(() => {
-        return mockSOPs.filter(sop => {
-            const matchesSearch = sop.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                sop.description.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesCategory = selectedCategory === 'All' || sop.category === selectedCategory;
-            return matchesSearch && matchesCategory;
-        });
-    }, [searchQuery, selectedCategory]);
+    useEffect(() => { loadSOPs(); }, [selectedCategory]);
 
-    const categories = ['All', ...Array.from(new Set(mockSOPs.map(sop => sop.category)))];
-
-    // Helper functions
-    const getPriorityBadge = (priority: SOPPriority) => {
-        switch (priority) {
-            case 'URGENT': return <div className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-black uppercase rounded tracking-wider">Urgent Safety</div>;
-            case 'HIGH': return <div className="px-2 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase rounded tracking-wider">High Priority</div>;
-            case 'MEDIUM': return <div className="px-2 py-1 bg-blue-100 dark:bg-primary/20 text-primary dark:text-blue-400 text-[10px] font-black uppercase rounded tracking-wider">Maintenance</div>;
-            case 'LOW': return <div className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase rounded tracking-wider">Routine</div>;
+    const loadSOPs = async () => {
+        setLoading(true);
+        try {
+            const params: any = {};
+            if (selectedCategory !== 'All') params.category = selectedCategory;
+            const res = await api.get('/api/knowledge/sops', { params });
+            setSOPs(res.data.data || []);
+        } catch (err) {
+            console.error('Failed to load SOPs', err);
+        } finally {
+            setLoading(false);
         }
+    };
+
+    // Client-side filter by search query on top of category filter
+    const filteredSOPs = useMemo(() => {
+        if (!searchQuery) return sops;
+        return sops.filter(sop =>
+            sop.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (sop.content || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (sop.tags || []).some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+    }, [searchQuery, sops]);
+
+    const categories = ['All', ...Array.from(new Set(sops.map(sop => sop.category)))];
+
+    const getPriorityBadge = (tags: string[] = []) => {
+        if (tags.includes('urgent') || tags.includes('critical')) return <div className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-black uppercase rounded tracking-wider">Critical</div>;
+        if (tags.includes('high') || tags.includes('important')) return <div className="px-2 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase rounded tracking-wider">High Priority</div>;
+        return <div className="px-2 py-1 bg-blue-100 dark:bg-primary/20 text-primary dark:text-blue-400 text-[10px] font-black uppercase rounded tracking-wider">Standard</div>;
     };
 
     return (
@@ -201,10 +163,12 @@ export default function KnowledgeBasePage() {
                                     <Download className="text-lg" />
                                     Export All
                                 </button>
-                                <button type="button" className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 transition-all">
-                                    <Plus className="text-lg" />
-                                    Create SOP
-                                </button>
+                                <Link href="/knowledge/create">
+                                    <button type="button" className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 transition-all">
+                                        <Plus className="text-lg" />
+                                        Create SOP
+                                    </button>
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -216,49 +180,50 @@ export default function KnowledgeBasePage() {
                         </div>
                     </div>
 
-                    {/* SOP Cards Grid */}
                     <div className="px-8 pb-12 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredSOPs.map(sop => (
-                            <div key={sop.id} className={`group bg-white dark:bg-background border-2 border-transparent hover:border-primary/50 rounded-xl p-5 shadow-sm transition-all flex flex-col ${sop.status === 'DRAFT' ? 'opacity-80' : ''}`}>
+                        {loading ? (
+                            <div className="col-span-3 text-center py-16 text-slate-400">Loading protocols...</div>
+                        ) : filteredSOPs.length === 0 ? (
+                            <div className="col-span-3 text-center py-16">
+                                <BookOpen className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                                <p className="font-bold text-slate-600">No protocols found</p>
+                                <p className="text-sm text-slate-400 mt-1">Create your first SOP to get started.</p>
+                            </div>
+                        ) : filteredSOPs.map(sop => (
+                            <div key={sop._id || sop.id} className="group bg-white dark:bg-background border-2 border-transparent hover:border-primary/50 rounded-xl p-5 shadow-sm transition-all flex flex-col">
                                 <div className="flex justify-between items-start mb-4">
-                                    {getPriorityBadge(sop.priority)}
+                                    {getPriorityBadge(sop.tags)}
                                     <MoreVertical className="text-slate-400 group-hover:text-primary cursor-pointer" />
                                 </div>
                                 <h3 className="text-lg font-bold leading-tight mb-2 group-hover:text-primary transition-colors text-slate-900 dark:text-white">{sop.title}</h3>
-                                <p className="text-sm text-slate-500 line-clamp-2 mb-6">{sop.description}</p>
+                                <p className="text-sm text-slate-500 line-clamp-2 mb-6">{sop.content?.replace(/<[^>]+>/g, '').substring(0, 100)}...</p>
                                 <div className="mt-auto space-y-4">
                                     <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
                                         <span className="flex items-center gap-1.5"><History className="text-sm" /> v{sop.version}</span>
-                                        {sop.duration > 0 ? (
-                                            <span className="flex items-center gap-1.5"><Timer className="text-sm" /> {sop.duration} mins</span>
-                                        ) : (
-                                            <span className="flex items-center gap-1.5 text-primary">Awaiting Review</span>
-                                        )}
+                                        <span className="flex items-center gap-1.5">{sop.views} views</span>
                                     </div>
                                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-border-dark">
-                                        <div className="flex -space-x-2">
-                                            {sop.reviewers.map((reviewer, i) => (
-                                                <div key={i} className="size-6 rounded-full bg-slate-200 border border-white dark:border-slate-900 overflow-hidden">
-                                                    <img src={reviewer} alt="Reviewer" className="w-full h-full object-cover" />
-                                                </div>
+                                        <div className="flex gap-1 flex-wrap">
+                                            {(sop.tags || []).slice(0,2).map((tag, i) => (
+                                                <span key={i} className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">{tag}</span>
                                             ))}
                                         </div>
-                                        <button type="button" className="text-primary text-xs font-bold hover:underline">
-                                            {sop.status === 'DRAFT' ? 'Resume Draft' : 'View Protocol'}
-                                        </button>
+                                        <button type="button" className="text-primary text-xs font-bold hover:underline">View Protocol</button>
                                     </div>
                                 </div>
                             </div>
                         ))}
 
                         {/* Add New Card Placeholder */}
-                        <div className="border-2 border-dashed border-slate-300 dark:border-border-dark hover:border-primary/50 hover:bg-primary/5 transition-all rounded-xl p-6 flex flex-col items-center justify-center text-center group cursor-pointer h-full min-h-[250px]">
-                            <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
-                                <span className="material-symbols-outlined text-2xl text-slate-500 group-hover:text-white">post_add</span>
+                        <Link href="/knowledge/create" className="block">
+                            <div className="border-2 border-dashed border-slate-300 dark:border-border-dark hover:border-primary/50 hover:bg-primary/5 transition-all rounded-xl p-6 flex flex-col items-center justify-center text-center group cursor-pointer h-full min-h-[250px]">
+                                <div className="size-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
+                                    <Plus className="text-2xl text-slate-500 group-hover:text-white" />
+                                </div>
+                                <p className="font-bold text-slate-700 dark:text-slate-300">Draft New SOP</p>
+                                <p className="text-xs text-slate-500 mt-1">Start from scratch with the WYSIWYG editor.</p>
                             </div>
-                            <p className="font-bold text-slate-700 dark:text-slate-300">Draft New SOP</p>
-                            <p className="text-xs text-slate-500 mt-1">Start from a template or clone an existing one.</p>
-                        </div>
+                        </Link>
                     </div>
                 </main>
 

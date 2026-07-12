@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { authenticate, requireOrganization } from '../middleware/security.js';
 import { validator } from '../middleware/validator.js';
@@ -97,13 +97,46 @@ router.patch(
   validator,
   async (req, res, next) => {
     try {
+      const { start, end, teamId, status } = req.body;
+      const existing = await Intervention.findOne({ _id: req.params.id, organizationId: req.organizationId });
+      
+      if (!existing) return res.status(404).json({ message: 'Intervention introuvable' });
+
+      // If dates are changing, check for conflicts
+      if (start || end) {
+          const newStart = start || existing.start;
+          const newEnd = end || existing.end;
+          const targetTeamId = teamId || existing.teamId;
+
+          const conflict = await Intervention.findOne({
+              organizationId: req.organizationId,
+              teamId: targetTeamId,
+              _id: { $ne: existing._id },
+              $or: [{ start: { $lt: newEnd }, end: { $gt: newStart } }],
+          });
+
+          if (conflict) {
+              return res.status(409).json({
+                  message: 'Conflit de planning détecté avec ce nouveau créneau.',
+                  conflictId: conflict._id,
+              });
+          }
+      }
+
+      // Track timesheets (suivi des heures)
+      if (status === 'completed' && existing.status !== 'completed') {
+          // Compute total hours based on actual start/end if available, else planned start/end
+          const s = new Date(existing.actualStart || existing.start).getTime();
+          const e = new Date(existing.actualEnd || existing.end || Date.now()).getTime();
+          const totalHours = (e - s) / (1000 * 60 * 60);
+          req.body.totalHours = totalHours;
+      }
+
       const updated = await Intervention.findOneAndUpdate(
         { _id: req.params.id, organizationId: req.organizationId },
         req.body,
         { new: true }
       );
-
-      if (!updated) return res.status(404).json({ message: 'Intervention introuvable' });
 
       if (io) {
         io.emit('intervention-updated', updated);

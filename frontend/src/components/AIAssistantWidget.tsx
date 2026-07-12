@@ -46,15 +46,12 @@ export function AIAssistantWidget() {
         setLoading(true);
 
         try {
-            // Appeler l'API Gateway qui route vers l'ai-service
-            // En mode démo (sur Vercel), cela risque d'utiliser mockApi.js
-            // Il faudra peut-être ajouter une route mock dans mockApi pour l'IA si le backend n'est pas up
-            const response = await api.post('/ai/chat', { message: userMsg.content });
+            const response = await api.post('/api/ai/chat', { message: userMsg.content });
             
             const assistMsg: ChatMessage = { 
                 id: (Date.now() + 1).toString(), 
                 role: 'assistant', 
-                content: response.reply || response.data?.reply || response.data?.response || 'Désolé, je n\'ai pas pu comprendre votre demande.' 
+                content: response.data?.reply || response.data?.response || 'Désolé, je n\'ai pas pu comprendre votre demande.' 
             };
             setMessages((prev) => [...prev, assistMsg]);
         } catch (error) {
@@ -62,7 +59,7 @@ export function AIAssistantWidget() {
             const errAssistMsg: ChatMessage = { 
                 id: (Date.now() + 1).toString(), 
                 role: 'assistant', 
-                content: 'Désolé, l\'agent IA est temporairement indisponible. Veuillez vérifier que le microservice IA est en cours d\'exécution.' 
+                content: '❌ L\'agent IA est temporairement indisponible. Vérifiez que le backend est en cours d\'exécution.' 
             };
             setMessages((prev) => [...prev, errAssistMsg]);
         } finally {

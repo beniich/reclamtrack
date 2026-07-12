@@ -1,8 +1,10 @@
-﻿import type { Request, Response} from 'express';
+import type { Request, Response} from 'express';
 import { Router } from 'express';
 import { authenticate as auth } from '../middleware/security.js';
 import { Vehicle } from '../models/Vehicle.js';
+import { FleetTrafficAgent } from '../services/fleetAgent.service.js';
 import { logger } from '../utils/logger.js';
+import { io } from '../services/socketService.js';
 
 const router = Router();
 
@@ -109,6 +111,16 @@ router.get('/vehicles', auth, async (req: Request, res: Response) => {
     logger.error('Erreur récupération véhicules:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
+});
+
+// GET /api/fleet/traffic-status - Etat du trafic IA
+router.get('/traffic-status', auth, (_req: Request, res: Response) => {
+    try {
+        const status = FleetTrafficAgent.getFleetTrafficStatus();
+        res.json({ success: true, data: status });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Erreur serveur' });
+    }
 });
 
 // GET /api/fleet/vehicles/export - Export CSV
@@ -230,6 +242,53 @@ router.put('/vehicles/:id/status', auth, async (req: Request, res: Response) => 
     res.json({ success: true, data: vehicle });
   } catch (error) {
     logger.error('Erreur mise à jour véhicule:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// POST /api/fleet/vehicles/:id/maintenance/check - Vérification maintenance préventive
+router.post('/vehicles/:id/maintenance/check', auth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const vehicle = await Vehicle.findById(id);
+    
+    if (!vehicle) {
+      return res.status(404).json({ success: false, message: 'Véhicule introuvable' });
+    }
+    
+    const now = new Date();
+    let needsMaintenance = false;
+    let reason = '';
+    
+    // Check if next maintenance date is past
+    if (vehicle.nextMaintenanceDue && new Date(vehicle.nextMaintenanceDue) <= now) {
+        needsMaintenance = true;
+        reason = 'Date de maintenance programmée dépassée.';
+    }
+    
+    // Note: We could also check mileage thresholds if we have a lastMaintenanceMileage field
+    // For now, if needsMaintenance is true, we update the status
+    
+    if (needsMaintenance && vehicle.status !== 'maintenance') {
+        vehicle.status = 'maintenance';
+        await vehicle.save();
+        
+        if (io) {
+            io.emit('fleet-alert', { 
+                vehicle, 
+                message: `Maintenance requise pour le véhicule ${vehicle.plateNumber}: ${reason}` 
+            });
+        }
+    }
+    
+    res.json({ 
+        success: true, 
+        needsMaintenance, 
+        reason,
+        data: vehicle
+    });
+  } catch (error) {
+    logger.error('Erreur vérification maintenance:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });

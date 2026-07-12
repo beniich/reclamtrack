@@ -3,11 +3,10 @@
 import { usePerformanceStats, useSatisfactionStats } from '@/hooks/useAnalytics';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { generateKPIPDF } from '@/lib/pdfReport';
 import { Complaint } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { saveAs } from 'file-saver';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 import Link from 'next/link';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -116,27 +115,32 @@ export default function ReportsPage() {
         XLSX.writeFile(workbook, `rapport_reclamations_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
-    const exportPDF = () => {
-        const doc = new jsPDF();
-        doc.text("Rapport des Réclamations - ReclamTrack", 14, 15);
+    const exportPDF = async () => {
+        const kpis = [
+            { label: 'Total Complaints', value: complaints.length },
+            { label: 'Resolved', value: complaints.filter((c: any) => c.status === 'résolue' || c.status === 'fermée').length },
+            { label: 'Avg Rating', value: satisfaction?.averageRating || 'N/A', unit: '/5' },
+            { label: 'SLA Compliance', value: performance?.slaCompliance || 'N/A', unit: '%' },
+            { label: 'Open Tickets', value: complaints.filter((c: any) => c.status === 'ouverte' || c.status === 'en cours').length },
+            { label: 'Report Period', value: frequency },
+        ];
 
-        const tableColumn = ["Numéro", "Titre", "Catégorie", "Priorité", "Statut", "Date"];
-        const tableRows = complaints.map((c) => [
-            c.number,
-            c.title,
-            c.category,
-            c.priority,
-            c.status,
+        const tableRows = complaints.map((c: any) => [
+            c.number || '',
+            (c.title || '').substring(0, 40),
+            c.category || '',
+            c.priority || '',
+            c.status || '',
             new Date(c.createdAt).toLocaleDateString()
         ]);
 
-        (doc as any).autoTable({
-            head: [tableColumn],
-            body: tableRows,
-            startY: 20,
+        await generateKPIPDF({
+            title: 'Complaints & KPI Report',
+            period: `${frequency} - ${new Date().toLocaleDateString()}`,
+            kpis,
+            tableHeaders: ['Number', 'Title', 'Category', 'Priority', 'Status', 'Date'],
+            tableRows,
         });
-
-        doc.save(`rapport_reclamations_${new Date().toISOString().slice(0, 10)}.pdf`);
     };
 
     const getStatusBadge = (status: ReportStatus) => {

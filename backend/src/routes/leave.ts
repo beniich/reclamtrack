@@ -1,6 +1,7 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { authenticate as protect } from '../middleware/security.js';
 import { Leave } from '../models/Leave.js';
+import { io } from '../services/socketService.js';
 
 const router = Router();
 
@@ -37,7 +38,15 @@ router.post('/', protect, async (req, res, next) => {
 router.patch('/:id/status', protect, async (req, res, next) => {
   try {
     const { status } = req.body;
-    const leave = await Leave.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const leave = await Leave.findByIdAndUpdate(req.params.id, { status }, { new: true }).populate('staffId');
+    
+    if (leave && io) {
+        io.emit('leave-updated', {
+            leave,
+            message: `Votre demande de congé a été ${status === 'Approved' ? 'approuvée' : status === 'Declined' ? 'refusée' : 'mise à jour'}.`
+        });
+    }
+
     res.json(leave);
   } catch (err) {
     next(err);

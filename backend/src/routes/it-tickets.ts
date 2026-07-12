@@ -3,6 +3,7 @@ import express from 'express';
 import { requireOrganization } from '../middleware/organization';
 import { authenticate as auth } from '../middleware/security.js';
 import ITTicket from '../models/ITTicket';
+import { User } from '../models/User.js';
 import type { AuthenticatedRequest } from '../types/request.js';
 import type { ImpactLevel, UrgencyLevel } from '../services/priorityMatrixService';
 import { calculatePriority } from '../services/priorityMatrixService';
@@ -164,8 +165,27 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       },
     });
 
+    // Auto-assign Level 1 IT (For demo, find an admin or technician)
+    const itStaff = await User.findOne({
+        organizationId: req.organizationId,
+        role: { $in: ['admin', 'technician'] }
+    });
+    
+    if (itStaff) {
+        ticket.assignedTo = itStaff._id;
+        ticket.status = 'assigned';
+        ticket.updates.push({
+            timestamp: new Date(),
+            userId: itStaff._id,
+            message: 'Billet assigné automatiquement (Niveau 1)',
+            internal: true,
+        });
+        await ticket.save();
+    }
+
     const populatedTicket = await ITTicket.findById(ticket._id)
       .populate('requestedBy', 'firstName lastName email')
+      .populate('assignedTo', 'firstName lastName email')
       .populate('relatedAsset', 'name type assetTag');
 
     res.status(201).json({ ticket: populatedTicket });

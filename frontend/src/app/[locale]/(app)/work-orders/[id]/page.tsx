@@ -8,7 +8,7 @@ import {
     Calendar, Users, FileText, Camera, ShieldCheck, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
+import { InterventionTimer } from '@/components/work-orders/InterventionTimer';
 export default function WorkOrderDetailsPage() {
     const params = useParams();
     
@@ -129,24 +129,13 @@ export default function WorkOrderDetailsPage() {
 
                 {/* Right Col: Logistics & Timing */}
                 <div className="space-y-6">
-                    <div className="bg-black text-white rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                            <Clock className="w-3 h-3" /> Temps & Main d'Œuvre
-                        </h4>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-1.5">
-                                    <span className="text-slate-400">Temps Consommé</span>
-                                    <span className="text-red-400">0h / {wo.estimatedHours}h</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full w-[15%] bg-gradient-to-r from-red-600 to-red-400 rounded-full"></div>
-                                </div>
-                            </div>
-                            
-                            <div className="pt-4 border-t border-border-dark">
+                    <InterventionTimer 
+                        workOrderId={wo.id}
+                        estimatedHours={wo.estimatedHours}
+                    />
+
+                    <div className="bg-white dark:bg-background rounded-[2rem] border border-slate-200 dark:border-border-dark p-6 shadow-sm">
+                        <div className="pt-2">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Équipe Assignée</span>
                                 <div className="flex items-center gap-2 mb-2">
                                     <Users className="w-4 h-4 text-slate-300" />

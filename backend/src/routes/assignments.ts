@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate as protect } from '../middleware/security.js';
 import { validator } from '../middleware/validator.js';
@@ -8,6 +8,16 @@ import { Team } from '../models/Team.js';
 import { io } from '../services/socketService.js';
 
 const router = Router();
+
+// Helper to calculate distance
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const p = 0.017453292519943295;    // Math.PI / 180
+  const c = Math.cos;
+  const a = 0.5 - c((lat2 - lat1) * p)/2 + 
+            c(lat1 * p) * c(lat2 * p) * 
+            (1 - c((lon2 - lon1) * p))/2;
+  return 12742 * Math.asin(Math.sqrt(a)); // 2 * R; R = 6371 km
+}
 
 /* GET /api/assignments - Get assignments for the current user (via Team) */
 router.get('/', protect, async (req: any, res, next) => {
@@ -69,6 +79,95 @@ router.post(
       }
 
       res.status(201).json(assignment);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/* POST /api/assignments/auto-assign */
+router.post(
+  '/auto-assign',
+  protect,
+  [body('complaintId').isMongoId()],
+  validator,
+  async (req: any, res, next) => {
+    try {
+      const { complaintId } = req.body;
+      const complaint = await Complaint.findById(complaintId);
+      
+      if (!complaint) return res.status(404).json({ message: 'Réclamation introuvable' });
+      if (complaint.status === 'résolue' || complaint.status === 'fermée') {
+        return res.status(400).json({ message: 'Cette réclamation est déjà clôturée' });
+      }
+
+      // Find teams in the same organization
+      const teams = await Team.find({ 
+        organizationId: complaint.organizationId,
+        isActive: true
+      });
+
+      if (teams.length === 0) {
+        return res.status(404).json({ message: 'Aucune équipe disponible dans cette organisation' });
+      }
+
+      // Complaint coordinates
+      const cLat = complaint.latitude || complaint.location?.latitude;
+      const cLng = complaint.longitude || complaint.location?.longitude;
+
+      let bestTeam = teams[0];
+      let bestScore = Infinity;
+
+      for (const team of teams) {
+        // Calculate workload (active assignments)
+        const activeCount = await Assignment.countDocuments({
+          teamId: team._id,
+          status: { $in: ['affecté', 'en cours'] }
+        });
+
+        // Workload penalty (e.g., +10km perceived distance per active assignment)
+        let score = activeCount * 10;
+
+        // If team is not available, add heavy penalty
+        if (team.status !== 'disponible') {
+          score += 50; 
+        }
+
+        // Distance logic
+        if (cLat && cLng) {
+          const tLat = team.location?.lat || team.baseLocation?.latitude;
+          const tLng = team.location?.lng || team.baseLocation?.longitude;
+
+          if (tLat && tLng) {
+            const distance = calculateDistance(cLat, cLng, tLat, tLng);
+            score += distance;
+          }
+        }
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestTeam = team;
+        }
+      }
+
+      // Assign to the best team
+      const assignment = await Assignment.create({
+        complaintId,
+        teamId: bestTeam._id,
+        status: 'affecté',
+      });
+
+      complaint.status = 'en cours';
+      await complaint.save();
+
+      bestTeam.status = 'intervention';
+      await bestTeam.save();
+
+      if (io) {
+        io.emit('assignment-created', { assignment, complaint, team: bestTeam });
+      }
+
+      res.status(201).json({ assignment, team: bestTeam, score: bestScore });
     } catch (err) {
       next(err);
     }

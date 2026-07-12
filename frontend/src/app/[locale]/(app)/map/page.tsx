@@ -23,15 +23,18 @@ export default function FleetMapPage() {
     const [teams, setTeams] = useState<any[]>([]);
     const [simulating, setSimulating] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [aiStatus, setAiStatus] = useState<any>(null);
 
     const fetchData = async () => {
         try {
-            const [cRes, tRes] = await Promise.all([
+            const [cRes, tRes, aiRes] = await Promise.all([
                 apiClient.get('/complaints'),
-                apiClient.get('/admin/teams')
+                apiClient.get('/admin/teams'),
+                apiClient.get('/fleet/traffic-status').catch(() => null)
             ]);
             setComplaints(cRes.data || []);
             setTeams(tRes.data || []);
+            if (aiRes?.data) setAiStatus(aiRes.data.data);
         } catch (err) {
             console.error("Erreur de chargement des données map", err);
         } finally {
@@ -132,9 +135,19 @@ export default function FleetMapPage() {
                         <h3 className="text-[10px] font-black text-primary dark:text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                             <AlertCircle className="w-3.5 h-3.5" /> Radar IA Operatif
                         </h3>
-                        <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                            "Optimalisation suggérée : L'unité **{teams[0]?.name || 'Alpha 1'}** est la plus proche de l'alerte **#{complaints[0]?.number || 'REQ-01'}**. Gain de temps estimé : **9 minutes**."
-                        </p>
+                        {aiStatus ? (
+                            <div className="space-y-2">
+                                {aiStatus.recommendations.map((rec: string, idx: number) => (
+                                    <p key={idx} className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                        &quot;{rec}&quot;
+                                    </p>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                &quot;Optimalisation suggérée : L'unité **{teams[0]?.name || 'Alpha 1'}** est la plus proche de l'alerte **#{complaints[0]?.number || 'REQ-01'}**. Gain de temps estimé : **9 minutes**.&quot;
+                            </p>
+                        )}
                     </div>
 
                     <div>

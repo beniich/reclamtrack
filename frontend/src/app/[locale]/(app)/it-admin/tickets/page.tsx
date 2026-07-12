@@ -61,11 +61,24 @@ export default function ITTicketsPage() {
     impact: 'medium',
     urgency: 'medium',
     status: 'new',
+    assetId: undefined,
   });
+  
+  const [assets, setAssets] = useState<any[]>([]);
 
   useEffect(() => {
     loadTickets();
+    loadAssets();
   }, [filterStatus]);
+
+  const loadAssets = async () => {
+      try {
+          const res = await api.get('/api/it-assets');
+          setAssets(res.data.assets || []);
+      } catch (err) {
+          console.error('Failed to load assets', err);
+      }
+  };
 
   const loadTickets = async () => {
     setLoading(true);
@@ -85,7 +98,7 @@ export default function ITTicketsPage() {
 
   const handleCreate = () => {
     setEditingTicket(null);
-    setFormData({ category: 'other', impact: 'medium', urgency: 'medium', status: 'new' });
+    setFormData({ category: 'other', impact: 'medium', urgency: 'medium', status: 'new', assetId: undefined });
     setIsDialogOpen(true);
   };
 
@@ -296,6 +309,11 @@ export default function ITTicketsPage() {
                         <ClipboardList className="h-4 w-4 text-gray-400" />
                         <span className="capitalize">Category: {ticket.category}</span>
                     </div>
+                    {ticket.assetId && (
+                         <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">Asset: {assets.find(a => a._id === ticket.assetId)?.name || 'Linked'}</span>
+                        </div>
+                    )}
                  </div>
 
                  <div className="flex gap-2">
@@ -375,6 +393,20 @@ export default function ITTicketsPage() {
                             <SelectItem value="access">Access / Account</SelectItem>
                             <SelectItem value="security">Security</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="assetId">Related Asset (Optional)</Label>
+                    <Select value={formData.assetId || ''} onValueChange={(val: any) => setFormData({...formData, assetId: val === 'none' ? undefined : val})}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select Asset" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">-- No Asset --</SelectItem>
+                            {assets.map(asset => (
+                                <SelectItem key={asset._id} value={asset._id}>{asset.name} ({asset.assetTag})</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>

@@ -14,7 +14,7 @@ export default function WorkOrderDetailsPage() {
     
     // Mock Data for Phase 2 OT Detail
     const wo = {
-        id: params?.id || '1',
+        id: Array.isArray(params?.id) ? params.id[0] : (params?.id || '1'),
         number: 'WO-2026-0001',
         title: 'Remplacement Roulement P1',
         type: 'corrective',

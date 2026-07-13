@@ -31,7 +31,14 @@ export const useAuth = () => {
             }
             return true;
         } catch (e: unknown) {
-            setError(e instanceof Error && 'response' in e ? (e as any).response?.data?.message : 'Erreur de connexion');
+            const errResponse = (e as any).response?.data;
+            let errorMessage = "Erreur de connexion";
+            if (errResponse?.errors && Array.isArray(errResponse.errors) && errResponse.errors.length > 0) {
+                errorMessage = errResponse.errors[0].msg;
+            } else if (errResponse?.message) {
+                errorMessage = errResponse.message;
+            }
+            setError(errorMessage);
             return false;
         } finally {
             setLoading(false);
@@ -53,7 +60,14 @@ export const useAuth = () => {
             }
             return true;
         } catch (e: unknown) {
-            setError(e instanceof Error && 'response' in e ? (e as any).response?.data?.message : "Erreur d'inscription");
+            const errResponse = (e as any).response?.data;
+            let errorMessage = "Erreur d'inscription";
+            if (errResponse?.errors && Array.isArray(errResponse.errors) && errResponse.errors.length > 0) {
+                errorMessage = errResponse.errors[0].msg;
+            } else if (errResponse?.message) {
+                errorMessage = errResponse.message;
+            }
+            setError(errorMessage);
             return false;
         } finally {
             setLoading(false);

@@ -1,0 +1,139 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: reclamtrack-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./microservices/api-gateway
+      dockerfile: Dockerfile
+    container_name: reclamtrack-api-gateway
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - COMPLAINTS_SERVICE_URL=http://complaints-service:3002
+      - TEAMS_SERVICE_URL=http://teams-service:3003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3004
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3005
+      - INVENTORY_SERVICE_URL=http://inventory-service:3006
+      - AI_SERVICE_URL=http://ai-service:3007
+      - LEGACY_BACKEND_URL=http://host.docker.internal:5009
+    depends_on:
+      - auth-service
+      - complaints-service
+      - teams-service
+      - notification-service
+      - analytics-service
+      - inventory-service
+      - ai-service
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ./microservices/auth-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  complaints-service:
+    build:
+      context: ./microservices/complaints-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-complaints-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  teams-service:
+    build:
+      context: ./microservices/teams-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-teams-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ./microservices/notification-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-notification-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      context: ./microservices/analytics-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-analytics-service
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ./microservices/inventory-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-inventory-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: ./microservices/ai-service
+      dockerfile: Dockerfile
+    container_name: reclamtrack-ai-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - MONGODB_URI=mongodb://mongodb:27017/reclamtrack
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:

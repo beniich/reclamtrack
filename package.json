@@ -10,6 +10,8 @@
   "scripts": {
     "install:all": "npm install && npm install --workspaces",
     "install:ci": "npm ci --ignore-scripts",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down",
     "dev": "concurrently \"npm run dev --workspace=frontend\" \"npm run dev --workspace=backend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",

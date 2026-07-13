@@ -29,7 +29,7 @@ export function Header({ showSearch = true, breadcrumbs }: HeaderProps) {
             {/* Logo & Breadcrumbs */}
             <div className="flex items-center gap-10">
                 <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-                    <Logo size={42} showText={true} />
+                    <Logo size={48} showText={true} />
                 </Link>
 
                 {breadcrumbs && (

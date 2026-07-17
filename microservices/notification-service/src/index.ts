@@ -171,7 +171,9 @@ if (process.env.DISABLE_KAFKA !== 'true') {
 
 app.use(express.json());
 
-app.post('/events', async (req, res) => {
+const notificationRoutes = express.Router();
+
+notificationRoutes.post('/events', async (req, res) => {
   const { topic, ...message } = req.body;
   console.log(`📥 [HTTP] Received on ${topic}:`, message.eventType);
 
@@ -225,9 +227,11 @@ app.post('/events', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
+notificationRoutes.get('/', (req, res) => {
   res.json({ service: serviceName, status: 'active' });
 });
+
+app.use('/api/notifications', notificationRoutes);
 
 app.listen(port, () => {
   console.log(`🚀 ${serviceName} listening on port ${port}`);

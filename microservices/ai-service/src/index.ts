@@ -51,7 +51,9 @@ async function callAI(prompt: string, systemPrompt: string = '', model: string =
 }
 
 // --- Synchronous AI Chat Endpoint ---
-app.post('/chat', async (req, res) => {
+const aiRoutes = express.Router();
+
+aiRoutes.post('/chat', async (req, res) => {
   const { prompt, model = 'llama3', system = '' } = req.body;
 
   try {
@@ -67,7 +69,7 @@ app.post('/chat', async (req, res) => {
 });
 
 // --- Health Check ---
-app.get('/health', (req, res) => {
+aiRoutes.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     service: 'ai-service',
@@ -75,6 +77,8 @@ app.get('/health', (req, res) => {
     endpoint: AI_PROVIDER === 'lmstudio' ? LMSTUDIO_URL : OLLAMA_URL,
   });
 });
+
+app.use('/api/ai', aiRoutes);
 
 // --- Kafka Asynchronous Integration ---
 const initKafka = async () => {

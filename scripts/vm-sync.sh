@@ -50,11 +50,18 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ Code synchronisé avec GitHub" | tee -a "$LOG_FILE"
 
-# --- 4. Redémarrage de l'application (optionnel) ---
-echo "[4/4] Mise à jour des dépendances..." | tee -a "$LOG_FILE"
-if [ -f "package.json" ]; then
-    npm install --silent 2>&1 | tee -a "$LOG_FILE"
-    echo "✅ Dépendances mises à jour" | tee -a "$LOG_FILE"
+# --- 4. Déploiement des Microservices via Docker Compose ---
+echo "[4/4] Redémarrage via Docker Compose..." | tee -a "$LOG_FILE"
+if [ -f "docker-compose.yml" ]; then
+    docker-compose down 2>&1 | tee -a "$LOG_FILE"
+    docker-compose up -d --build 2>&1 | tee -a "$LOG_FILE"
+    echo "✅ Conteneurs Docker redémarrés" | tee -a "$LOG_FILE"
+else
+    # Fallback pour un backend sans Docker
+    if [ -f "package.json" ]; then
+        npm install --silent 2>&1 | tee -a "$LOG_FILE"
+        echo "✅ Dépendances mises à jour" | tee -a "$LOG_FILE"
+    fi
 fi
 
 echo "" | tee -a "$LOG_FILE"

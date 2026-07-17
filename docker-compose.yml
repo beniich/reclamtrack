@@ -158,8 +158,9 @@ services:
     container_name: reclamtrack-frontend
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost/api
-      - NEXT_PUBLIC_SOCKET_URL=http://localhost
+      - NEXT_PUBLIC_API_URL=https://reclamtrack.ricecloud.net/api
+      - NEXT_PUBLIC_SOCKET_URL=https://reclamtrack.ricecloud.net
+      - NEXT_PUBLIC_APP_URL=https://reclamtrack.ricecloud.net
     depends_on:
       - api-gateway
     restart: unless-stopped

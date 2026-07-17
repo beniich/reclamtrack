@@ -93,30 +93,22 @@ cp .env.production .env
 
 Éditez le fichier `nginx/default.conf` pour remplacer `localhost` par votre véritable nom de domaine (ex: `votre-domaine.com`).
 Modifiez également `NEXT_PUBLIC_API_URL` dans le `docker-compose.yml` (service `frontend`) avec l'URL de votre API.
+Éditez le fichier `nginx/default.conf` pour remplacer `localhost` par votre véritable nom de domaine (ex: `reclamtrack.ricecloud.net`).
+Assurez-vous que votre domaine pointe bien vers l'IP de votre serveur.
 
-### 2. Démarrage initial (HTTP)
-
-Lancez l'infrastructure en tâche de fond (cela va compiler le Frontend Next.js en mode _standalone_) :
+Ensuite, lancez la stack :
 
 ```bash
 docker-compose up -d --build
 ```
 
-### 3. Génération du certificat SSL (Let's Encrypt)
-
-Exécutez cette commande ponctuelle pour que Certbot valide votre domaine et génère le certificat :
+Puis générez le certificat :
 
 ```bash
-docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d votre-domaine.com --email contact@votre-domaine.com --agree-tos --no-eff-email
+docker-compose run --rm certbot certonly --webroot --webroot-path /var/www/certbot/ -d reclamtrack.ricecloud.net --email contact@reclamtrack.ricecloud.net --agree-tos --no-eff-email
 ```
 
-### 4. Activation du HTTPS
-
-Une fois le certificat généré, ouvrez `nginx/default.conf` :
-
-1. Décommentez la ligne de redirection HTTP vers HTTPS (sous `# 2. Redirection HTTP -> HTTPS`).
-2. Tout en bas du fichier, **décommentez entièrement le bloc de serveur HTTPS** (port 443).
-3. Redémarrez Nginx pour appliquer :
+Une fois le certificat généré, décommentez la section HTTPS dans `nginx/default.conf` et redémarrez Nginx :
 
 ```bash
 docker-compose restart nginx

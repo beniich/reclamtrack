@@ -20,6 +20,17 @@ export const sendMail = async ({
   html: string;
 }) => {
   try {
+    // Si les credentials SMTP ne sont pas configurés (placeholder par défaut) ou en mode mémoire
+    const isSimulated = process.env.SMTP_USER === 'your_user'
+      || !process.env.SMTP_USER
+      || process.env.USE_MEMORY_DB === 'true'
+      || (global as any).IS_MEMORY_DB;
+
+    if (isSimulated) {
+        logger.warn(`⚠️ Mode DEV/DEMO: Email simulé pour ${to} (Sujet: ${subject})`);
+        return { messageId: 'simulated-id' };
+    }
+
     const info = await transporter.sendMail({
       from: `"ReclamTrack" <${process.env.SMTP_USER}>`,
       to,
@@ -30,6 +41,11 @@ export const sendMail = async ({
     return info;
   } catch (error) {
     logger.error(`❌ Échec envoi email à ${to}:`, error);
+    // En développement, on ne veut pas bloquer l'inscription si SMTP plante
+    if (process.env.NODE_ENV === 'development') {
+        logger.warn(`⚠️ Erreur ignorée en développement. L'inscription continue.`);
+        return { messageId: 'failed-but-ignored' };
+    }
     throw error;
   }
 };

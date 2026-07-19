@@ -52,11 +52,14 @@ export default function LoginPage() {
         }
     };
 
+    const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
     const handleQuickLogin = async (role: 'admin' | 'superadmin') => {
-        const credentials = role === 'admin' 
+        if (!isDemoMode) return;
+        const credentials = role === 'admin'
             ? { email: 'admin@reclamtrack.com', pass: 'Admin123!' }
             : { email: 'superadmin@reclamtrack.com', pass: 'SuperAdmin123!' };
-            
+
         setLoading(true);
         try {
             await login(credentials.email, credentials.pass);
@@ -70,6 +73,7 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+
 
     const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
         try {
@@ -201,24 +205,27 @@ export default function LoginPage() {
                             )}
                         </button>
 
-                        <div className="pt-4 grid grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                onClick={() => handleQuickLogin('admin')}
-                                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-primary/8 dark:hover:bg-slate-700 transition-all"
-                            >
-                                <span className="material-symbols-outlined text-sm">shield_person</span>
-                                {t('adminDemo')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleQuickLogin('superadmin')}
-                                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-primary/10 border border-indigo-100 dark:border-primary/20 text-primary dark:text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-primary/20 transition-all"
-                            >
-                                <span className="material-symbols-outlined text-sm">monitoring</span>
-                                {t('superAdmin')}
-                            </button>
-                        </div>
+                        {/* Quick Demo Login — affiché uniquement en mode démo */}
+                        {isDemoMode && (
+                            <div className="pt-4 grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleQuickLogin('admin')}
+                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-primary/8 dark:hover:bg-slate-700 transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-sm">shield_person</span>
+                                    {t('adminDemo')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleQuickLogin('superadmin')}
+                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-primary/10 border border-indigo-100 dark:border-primary/20 text-primary dark:text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-primary/20 transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-sm">monitoring</span>
+                                    {t('superAdmin')}
+                                </button>
+                            </div>
+                        )}
                     </form>
 
                     {/* Security Footer inside card */}

@@ -13,6 +13,8 @@ import { validator } from '../middleware/validator.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import AuditLog from '../models/AuditLog.js';
 import { User } from '../models/User.js';
+import { Organization } from '../models/Organization.js';
+import { Membership } from '../models/Membership.js';
 import {
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -34,6 +36,13 @@ import {
   unauthorizedResponse,
 } from '../utils/apiResponse.js';
 import { logger } from '../utils/logger.js';
+
+/** Génère un slug unique depuis le domaine email (ex: john@acme.com → acme) */
+function slugFromEmail(email: string): string {
+  const domain = email.split('@')[1] || email;
+  const base = domain.split('.')[0].toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40);
+  return `${base}-${crypto.randomBytes(3).toString('hex')}`;
+}
 
 import { securityDetectionService } from '../services/securityDetectionService.js';
 
@@ -62,18 +71,49 @@ router.post(
       if (exists) return conflictResponse(res, 'Email déjà utilisé');
 
       const verificationToken = crypto.randomBytes(32).toString('hex');
+
+      // ── 1. Créer l'utilisateur ────────────────────────────────────────────
       const user = await User.create({
         email,
         password,
         name,
         emailVerificationToken: verificationToken,
+        role: 'admin', // Le créateur d'une org est admin par défaut
       });
 
+      // ── 2. Créer l'organisation automatiquement (slug depuis domaine email) ─
+      const slug = slugFromEmail(email);
+      const orgName = name ? `Org de ${name}` : slug;
+      const organization = await Organization.create({
+        name: orgName,
+        slug,
+        ownerId: user._id,
+        subscription: {
+          plan: 'FREE',
+          status: 'TRIAL',
+          maxUsers: 5,
+          maxTickets: 100,
+          expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 jours trial
+        },
+      });
+
+      // ── 3. Lier l'utilisateur à l'organisation (OWNER) ────────────────────
+      await Membership.create({
+        userId: user._id,
+        organizationId: organization._id,
+        roles: ['OWNER'],
+        status: 'ACTIVE',
+      });
+
+      // Mettre à jour l'organizationId sur le user
+      user.organizationId = organization._id as any;
+      await user.save();
+
+      // ── 4. Email de vérification ─────────────────────────────────────────
       await sendEmailVerification(user.email, verificationToken);
 
-      const tokens = await issueTokenPair(user._id.toString(), user.role, user.email, req.ip);
-
-      logger.info(`✅ Inscription — ${email}`);
+      // ── 5. Audit log ─────────────────────────────────────────────────────
+      logger.info(`✅ Inscription — ${email} → org: ${slug}`);
       await AuditLog.create({
         action: 'REGISTER',
         userId: user._id,
@@ -82,7 +122,7 @@ router.post(
         category: 'AUTH',
         severity: 'INFO',
         outcome: 'SUCCESS',
-        details: { email, role: user.role },
+        details: { email, role: user.role, organizationId: organization._id, slug },
         ipAddress: req.ip,
       });
 
@@ -90,12 +130,24 @@ router.post(
         userId: user._id,
         email: user.email,
         role: user.role,
+        organizationId: organization._id,
         timestamp: new Date(),
       });
 
+      // ── 6. Ne pas retourner de tokens si vérification email requise ───────
+      const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
+      if (requireEmailVerification) {
+        return createdResponse(res, {
+          user: { id: user._id, email, role: user.role, organizationId: organization._id },
+          message: 'Compte créé. Veuillez vérifier votre email avant de vous connecter.',
+          emailVerificationRequired: true,
+        });
+      }
+
+      const tokens = await issueTokenPair(user._id.toString(), user.role, user.email, req.ip);
       return createdResponse(res, {
         ...tokens,
-        user: { id: user._id, email, role: user.role, organizationId: user.organizationId },
+        user: { id: user._id, email, role: user.role, organizationId: organization._id },
       });
     } catch (err) {
       next(err);
@@ -465,20 +517,6 @@ router.post('/password-reset/confirm', [
 ], validator, asyncHandler(async (req, res) => {
   // Skeleton: Verify token and update password
   successResponse(res, { message: 'Mot de passe mis à jour avec succès' });
-}));
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Session Management
-// ──────────────────────────────────────────────────────────────────────────────
-
-router.get('/sessions', authenticate, asyncHandler(async (req, res) => {
-  // Skeleton: List active sessions (requires DB tracking of refresh tokens)
-  successResponse(res, [{ id: 'session_1', device: 'Chrome / Windows', lastActive: new Date() }]);
-}));
-
-router.delete('/sessions/:id', authenticate, asyncHandler(async (req, res) => {
-  // Skeleton: Revoke a specific session
-  successResponse(res, { message: 'Session révoquée' });
 }));
 
 export default router;

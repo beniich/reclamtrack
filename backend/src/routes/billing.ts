@@ -17,15 +17,14 @@ import { successResponse } from '../utils/apiResponse.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
-const StripeConstructor = Stripe as any;
-const stripe = new StripeConstructor(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-  apiVersion: '2025-01-27.acacia', 
+const stripe = new (Stripe as any)(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-01-27.acacia',
 });
 
-// Map standard plans to Stripe Price IDs (from env)
+// Map standard plans to Stripe Product IDs (from env)
 const PLAN_PRICES: Record<string, string | undefined> = {
-  starter: process.env.STRIPE_PRICE_STARTER,
-  pro: process.env.STRIPE_PRICE_PRO,
+  starter:    process.env.STRIPE_PRICE_STARTER,
+  pro:        process.env.STRIPE_PRICE_PRO,
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE,
 };
 
@@ -76,14 +75,14 @@ router.get('/plans', (_req: Request, res: Response) => {
     {
       id: 'starter',
       name: 'Starter',
-      price: 29,
+      price: 49,
       maxUsers: PLAN_MAX_USERS.starter,
       features: PLAN_FEATURES.starter,
     },
     {
       id: 'pro',
       name: 'Professional',
-      price: 99,
+      price: 149,
       popular: true,
       maxUsers: PLAN_MAX_USERS.pro,
       features: PLAN_FEATURES.pro,
@@ -91,7 +90,7 @@ router.get('/plans', (_req: Request, res: Response) => {
     {
       id: 'enterprise',
       name: 'Enterprise',
-      price: 299,
+      price: 349,
       maxUsers: 'Illimité',
       features: PLAN_FEATURES.enterprise,
     },
@@ -114,11 +113,11 @@ router.post(
         throw new AppError('Configuration Stripe webhook manquante', 500, 'STRIPE_CONFIG_ERROR');
       }
 
-      let event: any;
+      let event: Stripe.Event;
       try {
-        event = (stripe).webhooks.constructEvent(req.body, sig, endpointSecret);
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
       } catch (err: any) {
-        logger.error(`[Billing] Webhook signature verification failed: ${err.message}`);
+        logger.error(`[Billing] Vérification de la signature webhook échouée: ${err.message}`);
         throw new AppError('Signature Webhook invalide', 400, 'STRIPE_SIGNATURE_INVALID');
       }
 
@@ -139,7 +138,7 @@ router.post(
           new Date(subscription.current_period_end * 1000)
         );
 
-        logger.info(`[Billing] Validated mapping for subscription: ${subscription.id}`);
+        logger.info(`[Billing] Abonnement mis à jour avec succès: ${subscription.id}`);
       } else if (event.type === 'customer.subscription.deleted') {
         const subscription = event.data.object;
         const stripeCustomerId = subscription.customer as string;

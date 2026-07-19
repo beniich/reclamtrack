@@ -9,6 +9,7 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<void>;
+    register: (email: string, password: string, name?: string) => Promise<{ emailVerificationRequired?: boolean }>;
     googleLogin: (credential: string) => Promise<void>;
     logout: () => void;
     setUser: (user: User | null) => void;
@@ -45,25 +46,45 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null });
                 try {
                     const response = await authApi.login({ email, password });
-                    const { user, accessToken: token } = response as any;
+                    const { user, accessToken } = response as any;
+                    const token = accessToken || (response as any).token;
 
-                    // Ensure user is not null
+                    if (!user || !token) {
+                        throw new Error('Réponse invalide du serveur');
+                    }
+
+                    // setToken s'occupe de localStorage + cookie
+                    set({ user, token, isLoading: false });
+                    useAuthStore.getState().setToken(token);
+                } catch (error: any) {
+                    const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Identifiants invalides';
+                    set({ isLoading: false, error: errorMsg });
+                    throw error;
+                }
+            },
+
+            register: async (email, password, name) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const response = await authApi.register({ email, password, name });
+                    const { user, accessToken, emailVerificationRequired } = response as any;
+                    const token = accessToken || (response as any).token;
+
+                    if (emailVerificationRequired) {
+                        set({ isLoading: false });
+                        return { emailVerificationRequired: true };
+                    }
+
                     if (!user || !token) {
                         throw new Error('Réponse invalide du serveur');
                     }
 
                     set({ user, token, isLoading: false });
-
-                    if (typeof window !== 'undefined' && token) {
-                        localStorage.setItem('auth_token', token);
-                        document.cookie = `auth-token=${token}; path=/; max-age=604800; SameSite=Lax`;
-                    }
+                    useAuthStore.getState().setToken(token);
+                    return {};
                 } catch (error: any) {
-                    const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Identifiants invalides';
-                    set({
-                        isLoading: false,
-                        error: errorMsg
-                    });
+                    const errorMsg = error.response?.data?.error || error.response?.data?.message || "Erreur d'inscription";
+                    set({ isLoading: false, error: errorMsg });
                     throw error;
                 }
             },
@@ -80,17 +101,10 @@ export const useAuthStore = create<AuthState>()(
                     }
 
                     set({ user, token, isLoading: false });
-
-                    if (typeof window !== 'undefined' && token) {
-                        localStorage.setItem('auth_token', token);
-                        document.cookie = `auth-token=${token}; path=/; max-age=604800; SameSite=Lax`;
-                    }
+                    useAuthStore.getState().setToken(token);
                 } catch (error: any) {
                     const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Échec de la connexion Google';
-                    set({
-                        isLoading: false,
-                        error: errorMsg
-                    });
+                    set({ isLoading: false, error: errorMsg });
                     throw error;
                 }
             },

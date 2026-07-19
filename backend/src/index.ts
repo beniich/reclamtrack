@@ -6,6 +6,7 @@ import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import { connectDB } from './config/db.js';
+import { seedDemoAccounts } from './scripts/seedDemo.js';
 import { envValidator } from './config/envValidator.js';
 import { auditTrail } from './middleware/auditTrail.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -214,6 +215,9 @@ const PORT = process.env['PORT'] ?? 5001;
 const start = async (): Promise<void> => {
   try {
     await connectDB();
+
+    // Seed demo accounts (admin/superadmin) when running in memory DB mode
+    await seedDemoAccounts();
 
     if (process.env['DISABLE_KAFKA'] !== 'true') {
       await startSagaConsumer();

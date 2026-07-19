@@ -169,10 +169,12 @@ export const apiClient = new ApiClient();
 export const authApi = {
     login: (credentials: { email: string; password: string }) =>
         apiClient.post(API_ROUTES.auth.login, credentials),
+    register: (data: { email: string; password: string; name?: string }) =>
+        apiClient.post(API_ROUTES.auth.register, data),
     logout: () => apiClient.post(API_ROUTES.auth.logout),
     me: () => apiClient.get(API_ROUTES.auth.me),
     refreshToken: () => apiClient.post(API_ROUTES.auth.refresh),
-    googleLogin: (credential: string) => apiClient.post('/auth/google', { credential }), // Not in shared yet, keep as is or add
+    googleLogin: (credential: string) => apiClient.post('/auth/google', { credential }),
 };
 
 export const complaintsApi = {

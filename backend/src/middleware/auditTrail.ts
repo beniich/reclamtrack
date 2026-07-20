@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import AuditLog from '../models/AuditLog.js';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 import { logger } from '../utils/logger.js';
 
 export const auditTrail = (category: 'AUTH' | 'DATA_ACCESS' | 'CONFIG_CHANGE' | 'SECURITY' | 'COMPLIANCE' | 'SYSTEM' = 'DATA_ACCESS', severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'INFO') => {
@@ -23,25 +24,32 @@ export const auditTrail = (category: 'AUTH' | 'DATA_ACCESS' | 'CONFIG_CHANGE' | 
              const action = `${req.method} ${req.route?.path || req.path}`;
 
              try {
-                 const log = new AuditLog({
-                     action,
-                     userId,
-                     organizationId: (req as any).organizationId,
-                     category,
-                     severity,
-                     outcome,
-                     ipAddress: req.ip,
-                     userAgent: req.get('user-agent'),
-                     sessionId: req.headers['x-session-id'] || null,
-                     requestId: (req as any).id, // From pino-http
-                     details: {
-                         body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? maskSensitiveData(req.body) : undefined,
-                         query: req.query,
-                         params: req.params,
-                         statusCode: res.statusCode
+                 const severityMap: any = { INFO: 'LOW', LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH', CRITICAL: 'CRITICAL' };
+                 const mappedSeverity = severityMap[severity] || 'LOW';
+                 const actionCode = (category === 'AUTH') ? (outcome === 'SUCCESS' ? 'USER_LOGIN' : 'USER_LOGOUT') : 'DATA_ACCESS';
+
+                 await prisma.auditLog.create({
+                     data: {
+                         action: actionCode,
+                         userId,
+                         targetId: (req as any).organizationId || 'none',
+                         details: {
+                             path: action,
+                             organizationId: (req as any).organizationId,
+                             category,
+                             severity: mappedSeverity,
+                             outcome,
+                             ipAddress: req.ip,
+                             userAgent: req.get('user-agent'),
+                             sessionId: req.headers['x-session-id'] || null,
+                             requestId: (req as any).id,
+                             body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? maskSensitiveData(req.body) : undefined,
+                             query: req.query,
+                             params: req.params,
+                             statusCode: res.statusCode
+                         }
                      }
                  });
-                 await log.save();
 
                  // Trigger Security Detection for non-INFO events
                  if (severity !== 'INFO' || outcome === 'FAILURE') {

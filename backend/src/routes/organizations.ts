@@ -1,11 +1,9 @@
-﻿import type { Response} from 'express';
+import type { Response} from 'express';
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate, requireOrganization } from '../middleware/security.js';
 import { validator } from '../middleware/validator.js';
-import AuditLog from '../models/AuditLog.js';
-import { Membership } from '../models/Membership.js';
-import { Organization } from '../models/Organization.js';
+import prisma from '../lib/prisma.js';
 
 const router = Router();
 
@@ -32,42 +30,46 @@ router.post(
       const userId = req.user.id;
 
       // Check if slug already exists
-      const existing = await Organization.findOne({ slug });
+      const existing = await prisma.organization.findUnique({ where: { slug } });
       if (existing) {
         return res.status(409).json({ message: 'Ce slug est déjà utilisé' });
       }
 
       // Create organization
-      const organization = await Organization.create({
-        name,
-        slug,
-        ownerId: userId,
-        subscription: {
-          plan: 'FREE',
-          status: 'TRIAL',
-          maxUsers: 5,
-          maxTickets: 100,
+      const organization = await prisma.organization.create({
+        data: {
+          name,
+          slug,
+          ownerId: userId,
+          subscriptionPlan: 'FREE',
+          subscriptionStatus: 'TRIAL',
+          subscriptionMaxUsers: 5,
+          subscriptionMaxTickets: 100,
           // Trial expires in 14 days
-          expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        },
+          subscriptionExpiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        }
       });
 
       // Create membership for the creator (OWNER role)
-      await Membership.create({
-        userId,
-        organizationId: organization._id,
-        roles: ['OWNER'],
-        status: 'ACTIVE',
+      await prisma.membership.create({
+        data: {
+          userId,
+          organizationId: organization.id,
+          roles: ['OWNER'],
+          status: 'ACTIVE',
+        }
       });
 
       // Audit log
-      await AuditLog.create({
-        action: 'CREATE_ORGANIZATION',
-        userId,
-        targetId: organization._id.toString(),
-        targetType: 'Organization',
-        details: { name, slug },
-        ipAddress: req.ip,
+      await prisma.auditLog.create({
+        data: {
+          action: 'DATA_CREATE',
+          userId,
+          targetId: organization.id,
+          targetType: 'Organization',
+          details: { event: 'CREATE_ORGANIZATION', name, slug },
+          ipAddress: req.ip,
+        }
       });
 
       res.status(201).json({
@@ -90,15 +92,20 @@ router.get('/', authenticate, async (req: any, res: Response) => {
     const userId = req.user.id;
 
     // Find all memberships for this user
-    const memberships = await Membership.find({
-      userId,
-      status: 'ACTIVE',
-    }).populate('organizationId');
+    const memberships = await prisma.membership.findMany({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
+      include: {
+        organization: true
+      }
+    });
 
     const organizations = memberships
-      .filter((m) => m.organizationId) // Guard against null populates
+      .filter((m) => m.organization) // Guard against null populates
       .map((m) => ({
-        ...(m.organizationId as any).toObject(),
+        ...m.organization,
         membership: {
           roles: m.roles,
           joinedAt: m.joinedAt,
@@ -118,7 +125,10 @@ router.get('/', authenticate, async (req: any, res: Response) => {
  */
 router.get('/:id', authenticate, requireOrganization, async (req: any, res: Response) => {
   try {
-    const organization = await Organization.findById(req.organizationId);
+    const organization = await prisma.organization.findUnique({
+      where: { id: req.organizationId }
+    });
+    
     if (!organization) {
       return res.status(404).json({ message: 'Organisation introuvable' });
     }
@@ -150,18 +160,16 @@ router.patch('/:id', authenticate, requireOrganization, async (req: any, res: Re
       return res.status(403).json({ message: 'Droits insuffisants' });
     }
 
-    const organization = await Organization.findByIdAndUpdate(
-      req.organizationId,
-      { $set: req.body },
-      { new: true, runValidators: true }
-    );
-
-    if (!organization) {
-      return res.status(404).json({ message: 'Organisation introuvable' });
-    }
+    const organization = await prisma.organization.update({
+      where: { id: req.organizationId },
+      data: req.body
+    });
 
     res.json({ success: true, organization });
   } catch (error: any) {
+    if (error.code === 'P2025') { // Record not found
+       return res.status(404).json({ message: 'Organisation introuvable' });
+    }
     res.status(500).json({ message: error.message });
   }
 });

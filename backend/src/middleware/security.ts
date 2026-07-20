@@ -8,8 +8,8 @@
 
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import type { IMembership} from '../models/Membership.js';
-import { Membership } from '../models/Membership.js';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 import {
   AppError,
   ForbiddenAppError,
@@ -92,10 +92,12 @@ export const requireOrganization = async (
       return next(new AppError('En-tête x-organization-id requis', 400, 'ORG_HEADER_MISSING'));
     }
 
-    const membership = await Membership.findOne({
-      userId,
-      organizationId,
-      status: 'ACTIVE',
+    const membership = await prisma.membership.findFirst({
+      where: {
+        userId,
+        organizationId,
+        status: 'ACTIVE',
+      }
     });
 
     if (!membership) {
@@ -103,7 +105,7 @@ export const requireOrganization = async (
     }
 
     req.organizationId = organizationId;
-    req.membership = membership as IMembership;
+    req.membership = membership;
 
     logger.debug(`[Org] ✅ User ${userId} → org ${organizationId}`, { requestId: req.id });
     next();
@@ -129,7 +131,10 @@ export const requireAdmin = async (
     if (!req.membership) {
       return next(new ForbiddenAppError("Contexte d'organisation manquant", 'ORG_CONTEXT_MISSING'));
     }
-    if (!(req.membership as IMembership).isAdmin()) {
+    const mem = req.membership as any;
+    const roles = mem.roles || [];
+    const isAdmin = roles.includes('ADMIN') || roles.includes('OWNER') || roles.includes('SUPERADMIN');
+    if (!isAdmin) {
       return next(new ForbiddenAppError('Droits administrateur requis', 'ADMIN_REQUIRED'));
     }
     logger.debug(`[Admin] ✅ Admin access granted`, { requestId: req.id });
@@ -157,9 +162,10 @@ export const requireRole = (roles: string | string[]) => {
         );
       }
       const allowedRoles = Array.isArray(roles) ? roles : [roles];
-      const hasPermission = allowedRoles.some((role) =>
-        (req.membership as IMembership).hasRole(role)
-      );
+      const mem = req.membership as any;
+      const memRoles = mem.roles || [];
+      const isSuper = memRoles.includes('ADMIN') || memRoles.includes('OWNER') || memRoles.includes('SUPERADMIN');
+      const hasPermission = isSuper || allowedRoles.some((role) => memRoles.includes(role));
       if (!hasPermission) {
         return next(
           new ForbiddenAppError(`Rôle requis: ${allowedRoles.join(' ou ')}`, 'ROLE_REQUIRED')

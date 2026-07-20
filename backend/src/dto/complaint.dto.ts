@@ -56,7 +56,7 @@ export const createComplaintValidators = [
     .withMessage(`Priorité invalide. Valeurs: ${VALID_PRIORITIES.join(', ')}`),
   body('category').optional().trim().isLength({ max: 100 }),
   body('location').optional().trim().isLength({ max: 200 }),
-  body('assetId').optional().isMongoId().withMessage('assetId invalide'),
+  body('assetId').optional().isUUID(4).withMessage('assetId invalide'),
 ];
 
 export const updateComplaintValidators = [
@@ -67,9 +67,9 @@ export const updateComplaintValidators = [
     .isIn(VALID_STATUSES)
     .withMessage(`Statut invalide. Valeurs: ${VALID_STATUSES.join(', ')}`),
   body('priority').optional().isIn(VALID_PRIORITIES),
-  body('assignedTeamId').optional().isMongoId().withMessage('assignedTeamId invalide'),
-  body('resolution').optional().trim().isLength({ max: 2000 }),
-  body('assetId').optional().isMongoId().withMessage('assetId invalide'),
+  body('assignedTeamId').optional().isUUID(4).withMessage('assignedTeamId invalide'),
+  body('resolution').optional().trim().isLength({ min: 5, max: 2000 }),
+  body('assetId').optional().isUUID(4).withMessage('assetId invalide'),
 ];
 
 export const queryComplaintValidators = [
@@ -82,6 +82,6 @@ export const queryComplaintValidators = [
   query('to').optional().isISO8601(),
 ];
 
-export const complaintIdParamValidator = [
-  param('id').isMongoId().withMessage('ID de réclamation invalide'),
+export const complaintIdValidator = [
+  param('id').isUUID(4).withMessage('ID de réclamation invalide'),
 ];

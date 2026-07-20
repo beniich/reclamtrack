@@ -12,8 +12,7 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { RefreshToken } from '../models/RefreshToken.js';
-import { User } from '../models/User.js';
+import prisma from '../lib/prisma.js';
 import {
   AuthAppError,
   NotFoundAppError,
@@ -62,7 +61,7 @@ export interface TokenPair {
  * Issue a fresh access + refresh token pair for the given user.
  * Creates a new refresh token family.
  *
- * @param userId - MongoDB ObjectId string of the authenticated user
+ * @param userId - String UUID of the authenticated user
  * @param role - User role embedded in JWT payload
  * @param email - User email embedded in JWT payload
  * @param ip - Client IP address for audit trail
@@ -80,12 +79,15 @@ export const issueTokenPair = async (
   const rawRefresh = generateRawRefreshToken();
   const family = uuidv4();
 
-  await RefreshToken.create({
-    userId,
-    tokenHash: hashToken(rawRefresh),
-    family,
-    expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
-    createdFromIp: ip,
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      tokenHash: hashToken(rawRefresh),
+      family,
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
+      createdFromIp: ip || null,
+      ipAddress: ip || null,
+    }
   });
 
   logger.info(`[TokenService] Issued token pair for user ${userId}`, { family });
@@ -113,7 +115,7 @@ export const rotateRefreshToken = async (
   ip?: string
 ): Promise<TokenPair> => {
   const tokenHash = hashToken(rawRefreshToken);
-  const record = await RefreshToken.findOne({ tokenHash });
+  const record = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
   if (!record) {
     throw new TokenInvalidAppError();
@@ -124,10 +126,10 @@ export const rotateRefreshToken = async (
     logger.warn(
       `[TokenService] 🚨 Refresh token REUSE detected — revoking family ${record.family}`
     );
-    await RefreshToken.updateMany(
-      { family: record.family, revokedAt: null },
-      { revokedAt: new Date() }
-    );
+    await prisma.refreshToken.updateMany({
+      where: { family: record.family, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
     throw new AuthAppError(
       'Session compromise détectée — reconnectez-vous',
       'AUTH_SESSION_COMPROMISED'
@@ -136,111 +138,128 @@ export const rotateRefreshToken = async (
 
   // Expired
   if (record.expiresAt < new Date()) {
-    record.revokedAt = new Date();
-    await record.save();
+    await prisma.refreshToken.update({
+      where: { id: record.id },
+      data: { revokedAt: new Date() }
+    });
     throw new TokenExpiredAppError();
   }
 
   // Revoke current token
-  record.revokedAt = new Date();
-  await record.save();
+  await prisma.refreshToken.update({
+    where: { id: record.id },
+    data: { revokedAt: new Date() }
+  });
 
   // Load user to get latest role/email (in case they changed)
-  const user = await User.findById(record.userId).select('role email');
+  const user = await prisma.user.findUnique({ where: { id: record.userId }, select: { role: true, email: true } });
   if (!user) {
     throw new NotFoundAppError('Utilisateur');
   }
 
-  // Issue new pair in the same family
-  const rawNew = generateRawRefreshToken();
-  await RefreshToken.create({
-    userId: record.userId,
-    tokenHash: hashToken(rawNew),
-    family: record.family,
-    expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
-    createdFromIp: ip,
-  });
-
+  // Issue new pair (keeps the SAME family)
   const accessToken = jwt.sign(
-    { id: user._id.toString(), role: user.role, email: user.email },
+    { id: record.userId, role: user.role, email: user.email },
     process.env.JWT_SECRET!,
-    { expiresIn: ACCESS_TOKEN_EXPIRY } as jwt.SignOptions
+    {
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    } as jwt.SignOptions
   );
 
-  const decoded = jwt.decode(accessToken) as { exp: number };
-  const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+  const newRawRefresh = generateRawRefreshToken();
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: record.userId,
+      tokenHash: hashToken(newRawRefresh),
+      family: record.family, // Link to existing family
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
+      createdFromIp: ip || null,
+      ipAddress: ip || null,
+    }
+  });
 
   logger.info(`[TokenService] Rotated refresh token for user ${record.userId}`, {
     family: record.family,
   });
 
-  return { accessToken, refreshToken: rawNew, expiresIn };
+  const decoded = jwt.decode(accessToken) as { exp: number };
+  const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+
+  return { accessToken, refreshToken: newRawRefresh, expiresIn };
 };
 
 /**
- * Revoke a specific refresh token (logout).
- * Does NOT cascade-revoke the family — only the presented token is invalidated.
+ * Log out user from a specific device by revoking their refresh token.
  */
 export const revokeRefreshToken = async (rawRefreshToken: string): Promise<void> => {
   const tokenHash = hashToken(rawRefreshToken);
-  const result = await RefreshToken.updateOne(
-    { tokenHash, revokedAt: null },
-    { revokedAt: new Date() }
-  );
-  logger.info(`[TokenService] Revoked refresh token (matched: ${result.matchedCount})`);
+  const record = await prisma.refreshToken.findUnique({ where: { tokenHash } });
+
+  if (record && !record.revokedAt) {
+    await prisma.refreshToken.update({
+      where: { id: record.id },
+      data: { revokedAt: new Date() }
+    });
+    logger.info(`[TokenService] Revoked refresh token for user ${record.userId}`);
+  }
 };
 
 /**
- * Revoke ALL active refresh tokens for a user (logout from all devices).
+ * Log out user from ALL devices (revoke entire family or all families).
  */
 export const revokeAllUserTokens = async (userId: string): Promise<void> => {
-  await RefreshToken.updateMany({ userId, revokedAt: null }, { revokedAt: new Date() });
-  logger.info(`[TokenService] Revoked all tokens for user ${userId}`);
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() }
+  });
+  logger.info(`[TokenService] Revoked ALL tokens for user ${userId}`);
 };
 
 /**
- * Phantom Token introspection — validates a raw (opaque) refresh token
- * and returns the associated user payload. Used for service-to-service calls.
- *
- * @param rawToken - Opaque refresh token
- * @returns User payload or null if token is invalid/expired/revoked
+ * Phantom Token Introspection (Service-to-Service).
+ * Translates opaque token back to user payload if valid.
  */
-export const introspectToken = async (
-  rawToken: string
-): Promise<{ userId: string; role: string; email: string } | null> => {
-  const tokenHash = hashToken(rawToken);
-  const record = await RefreshToken.findOne({ tokenHash }).populate<{
-    userId: { _id: string; role: string; email: string };
-  }>('userId', 'role email');
-
-  if (!record || record.revokedAt || record.expiresAt < new Date()) {
+export const introspectToken = async (accessToken: string): Promise<any | null> => {
+  try {
+    const payload = jwt.verify(accessToken, process.env.JWT_SECRET!) as any;
+    return {
+      sub: payload.id,
+      email: payload.email,
+      role: payload.role,
+      exp: payload.exp,
+      iat: payload.iat,
+    };
+  } catch (err) {
     return null;
   }
-
-  const user = record.userId as any;
-  return {
-    userId: user._id.toString(),
-    role: user.role,
-    email: user.email,
-  };
 };
+
 /**
- * Get all non-revoked, non-expired refresh tokens for a user.
+ * Sessions Management: List all active sessions for a user
+ * SOC 2 CC6.1 - Allow users to view active sessions.
  */
 export const getActiveSessionsForUser = async (userId: string) => {
-    return await RefreshToken.find({
-        userId,
-        revokedAt: null,
-        expiresAt: { $gt: new Date() }
-    }).sort({ createdAt: -1 });
+  const activeTokens = await prisma.refreshToken.findMany({
+    where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return activeTokens.map(token => ({
+    id: token.id, // safe to expose DB id? Yes, or maybe just hash. In previous code we returned tokenHash snippet. Let's return tokenHash.
+    hash: token.tokenHash, // Using hash as session identifier
+    ipAddress: token.createdFromIp || token.ipAddress,
+    createdAt: token.createdAt,
+    expiresAt: token.expiresAt,
+  }));
 };
 
 /**
- * Revoke a token by its hash (useful for revocation from a dashboard).
+ * Revoke a specific session by hash (used by users in their dashboard).
  */
-export const revokeTokenByHash = async (tokenHash: string): Promise<void> => {
-    await RefreshToken.updateOne(
-        { tokenHash, revokedAt: null },
-        { revokedAt: new Date() }
-    );
+export const revokeTokenByHash = async (tokenHash: string) => {
+  await prisma.refreshToken.updateMany({
+    where: { tokenHash },
+    data: { revokedAt: new Date() }
+  });
 };

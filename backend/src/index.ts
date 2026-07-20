@@ -5,7 +5,6 @@ import { createServer } from 'http';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
-import { connectDB } from './config/db.js';
 import { seedDemoAccounts } from './scripts/seedDemo.js';
 import { envValidator } from './config/envValidator.js';
 import { auditTrail } from './middleware/auditTrail.js';
@@ -214,7 +213,7 @@ const PORT = process.env['PORT'] ?? 5001;
 
 const start = async (): Promise<void> => {
   try {
-    await connectDB();
+    // DB Connection is now managed by PrismaClient internally
 
     // Seed demo accounts (admin/superadmin) when running in memory DB mode
     await seedDemoAccounts();

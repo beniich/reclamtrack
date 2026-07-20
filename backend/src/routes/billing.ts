@@ -126,7 +126,7 @@ router.post(
         event.type === 'customer.subscription.created' ||
         event.type === 'customer.subscription.updated'
       ) {
-        const subscription = event.data.object;
+        const subscription = event.data.object as any;
         const stripeCustomerId = subscription.customer as string;
         const priceId = subscription.items.data[0].price.id;
 
@@ -140,7 +140,7 @@ router.post(
 
         logger.info(`[Billing] Abonnement mis à jour avec succès: ${subscription.id}`);
       } else if (event.type === 'customer.subscription.deleted') {
-        const subscription = event.data.object;
+        const subscription = event.data.object as any;
         const stripeCustomerId = subscription.customer as string;
 
         await updateFromStripe(stripeCustomerId, subscription.id, '', 'canceled', new Date());

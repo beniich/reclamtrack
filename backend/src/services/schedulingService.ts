@@ -1,11 +1,8 @@
-import type { Types } from 'mongoose';
-import type { ITeam } from '../models/Team.js';
-import { Team } from '../models/Team.js';
-import { Complaint, IComplaint } from '../models/Complaint.js';
+import prisma from '../lib/prisma.js';
 
 interface TeamScore {
-    teamId: Types.ObjectId;
-    team: ITeam;
+    teamId: string;
+    team: any;
     score: number;
     reasons: string[];
 }
@@ -68,7 +65,7 @@ type ScoringProfile = keyof typeof SCORING_PROFILES;
  * Auto-assign a complaint to the best available team
  * Algorithm considers: skills, availability, distance, and workload
  */
-export const autoAssignComplaint = async (complaintId: string): Promise<Types.ObjectId | null> => {
+export const autoAssignComplaint = async (complaintId: string): Promise<string | null> => {
     try {
         // Get the active profile from env or default to 'balanced'
         const profileName = (process.env.SCORING_PROFILE as ScoringProfile) || 'balanced';
@@ -77,13 +74,13 @@ export const autoAssignComplaint = async (complaintId: string): Promise<Types.Ob
         console.log(`Using scheduling profile: ${profileName.toUpperCase()}`);
 
         // Get the complaint
-        const complaint = await Complaint.findById(complaintId);
+        const complaint = await prisma.complaint.findUnique({ where: { id: complaintId } });
         if (!complaint) {
             throw new Error('Complaint not found');
         }
 
         // Get all active teams
-        const teams = await Team.find({ isActive: true });
+        const teams = await prisma.team.findMany({ where: { organizationId: complaint.organizationId } });
         if (teams.length === 0) {
             console.log('No active teams available');
             return null;
@@ -141,28 +138,33 @@ export const autoAssignComplaint = async (complaintId: string): Promise<Types.Ob
             }
 
             // 3. GEOGRAPHIC DISTANCE
-            if (complaint.location && team.baseLocation) {
-                const distance = calculateDistance(
-                    complaint.location.latitude,
-                    complaint.location.longitude,
-                    team.baseLocation?.latitude || 0,
-                    team.baseLocation?.longitude || 0
-                );
-
-                // Closer is better
+            if (complaint.location && (complaint.location as any).latitude) {
+                const loc = complaint.location as any;
+                const teamLoc = (team as any).baseLocation;
                 let distanceScore = 0;
-                if (distance < 5) {
-                    distanceScore = scoring.distance.veryClose;
-                    reasons.push(`Très proche (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
-                } else if (distance < 15) {
-                    distanceScore = scoring.distance.close;
-                    reasons.push(`Proximité moyenne (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
-                } else if (distance < 30) {
-                    distanceScore = scoring.distance.acceptable;
-                    reasons.push(`Distance acceptable (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
+                if (teamLoc) {
+                    const distance = calculateDistance(
+                        loc.latitude,
+                        loc.longitude,
+                        teamLoc.latitude || 0,
+                        teamLoc.longitude || 0
+                    );
+                    if (distance < 5) {
+                        distanceScore = scoring.distance.veryClose;
+                        reasons.push(`Très proche (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
+                    } else if (distance < 15) {
+                        distanceScore = scoring.distance.close;
+                        reasons.push(`Proximité moyenne (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
+                    } else if (distance < 30) {
+                        distanceScore = scoring.distance.acceptable;
+                        reasons.push(`Distance acceptable (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
+                    } else {
+                        distanceScore = scoring.distance.far;
+                        reasons.push(`Loin (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
+                    }
                 } else {
-                    distanceScore = scoring.distance.far;
-                    reasons.push(`Loin (${distance.toFixed(1)}km) (+${distanceScore} pts)`);
+                    distanceScore = Math.round(scoring.distance.acceptable);
+                    reasons.push(`Pas de données d'équipe (+${distanceScore} pts)`);
                 }
                 score += distanceScore;
             } else {
@@ -173,9 +175,11 @@ export const autoAssignComplaint = async (complaintId: string): Promise<Types.Ob
             }
 
             // 4. WORKLOAD
-            const activeComplaints = await Complaint.countDocuments({
-                assignedTeamId: team._id,
-                status: { $in: ['new', 'assigned', 'in_progress'] }
+            const activeComplaints = await prisma.complaint.count({
+                where: {
+                    assignedTeamId: team.id,
+                    status: { in: ['nouvelle', 'en_cours'] as any }
+                }
             });
 
             let workloadScore = 0;
@@ -203,7 +207,7 @@ export const autoAssignComplaint = async (complaintId: string): Promise<Types.Ob
             }
 
             teamScores.push({
-                teamId: team._id,
+                teamId: team.id,
                 team: team,
                 score,
                 reasons
@@ -225,11 +229,14 @@ export const autoAssignComplaint = async (complaintId: string): Promise<Types.Ob
         const bestTeam = teamScores[0];
         if (bestTeam && bestTeam.score > 0) {
             // Update the complaint with the assigned team
-            await Complaint.findByIdAndUpdate(complaintId, {
-                assignedTeamId: bestTeam.teamId,
-                status: 'assigned',
-                assignedAt: new Date()
-            }, { new: true });
+            await prisma.complaint.update({
+                where: { id: complaintId },
+                data: {
+                    assignedTeamId: bestTeam.teamId,
+                    status: 'en_cours' as any,
+                    assignedAt: new Date()
+                }
+            });
 
             console.log(`\n✅ Assigned to: ${bestTeam.team.name} (Score: ${bestTeam.score})`);
             console.log('================================\n');

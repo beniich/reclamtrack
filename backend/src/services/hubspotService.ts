@@ -28,7 +28,8 @@ export const getHubspotStatus = async () => {
         // Simple appel pour tester la validité (ex: get l'owner ou le compte)
         const client = getClient();
         // L'API CRM V3 standard pour vérifier l'accès: récupérer les propriétés de base des contacts
-        await client.crm.contacts.coreApi.getPage(1, undefined, undefined, undefined, undefined, false);
+        // L'API CRM V3 standard pour vérifier l'accès
+        await (client.crm.contacts as any).basicApi.getPage(1);
         return { connected: true, message: 'Connecté' };
     } catch (error) {
         logger.error('Erreur de connexion HubSpot', error);

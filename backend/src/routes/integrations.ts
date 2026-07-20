@@ -4,7 +4,7 @@
  * @module backend/routes
  */
 
-import { Router } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { authenticate, requireAdmin } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { successResponse } from '../utils/apiResponse.js';
@@ -20,34 +20,27 @@ import { createOrUpdateContact, getHubspotStatus } from '../services/hubspotServ
  * GET /api/integrations/hubspot/status
  * Vérifie le statut de la connexion HubSpot.
  */
-router.get('/hubspot/status', asyncHandler(async (req, res) => {
-    const status = await getHubspotStatus();
-    res.json(successResponse(status));
-}));
+router.get('/hubspot/status', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const status = await getHubspotStatus();
+        res.json({ success: true, data: status });
+    } catch(e) { next(e); }
+});
 
 /**
  * POST /api/integrations/hubspot/lead
  * Capture un prospect et l'envoie vers HubSpot CRM.
  */
-router.post('/hubspot/lead', asyncHandler(async (req, res) => {
-    const { email, firstname, lastname, company, linkedin_url, phone } = req.body;
-    
-    if (!email || !firstname) {
-        return res.status(400).json({ success: false, message: 'Email et prénom sont requis.' });
-    }
-
-    const result = await createOrUpdateContact({
-        email,
-        firstname,
-        lastname: lastname || '',
-        company,
-        linkedin_url,
-        phone,
-        lifecyclestage: 'lead'
-    });
-
-    res.json(successResponse(result, 'Lead synchronisé avec succès'));
-}));
+router.post('/hubspot/lead', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { email, firstname, lastname, company, linkedin_url, phone } = req.body as any;
+        if (!email || !firstname) {
+            return res.status(400).json({ success: false, message: 'Email et prénom sont requis.' });
+        }
+        const result = await createOrUpdateContact({ email, firstname, lastname: lastname || '', company, linkedin_url, phone, lifecyclestage: 'lead' });
+        res.json({ success: true, data: result });
+    } catch(e) { next(e); }
+});
 
 
 /**

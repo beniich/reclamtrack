@@ -1,10 +1,9 @@
-﻿import type { Response} from 'express';
+import type { Response} from 'express';
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate, requireAdmin, requireOrganization } from '../middleware/security.js';
 import { validator } from '../middleware/validator.js';
-import { Membership } from '../models/Membership.js';
-import { User } from '../models/User.js';
+import prisma from '../lib/prisma.js';
 
 const router = Router();
 
@@ -19,19 +18,24 @@ router.get(
   requireOrganization,
   async (req: any, res: Response) => {
     try {
-      const members = await Membership.find({ organizationId: req.organizationId })
-        .populate('userId', 'name email avatar')
-        .populate('invitedBy', 'name');
+      const members = await prisma.membership.findMany({
+        where: { organizationId: req.organizationId },
+        include: {
+          user: { select: { name: true, email: true, avatar: true } },
+          // invitedBy is a String (userId) in Prisma schema currently, not a relation.
+          // In Mongoose it was an ObjectId ref. If it's just a string ID, we can't populate it directly without another query.
+        }
+      });
 
       res.json({
         success: true,
         data: members.map((m) => ({
-          id: m._id,
-          user: m.userId,
+          id: m.id,
+          user: m.user,
           roles: m.roles,
           status: m.status,
           joinedAt: m.joinedAt,
-          invitedBy: m.invitedBy,
+          invitedBy: m.invitedBy, // Just the ID string for now
         })),
       });
     } catch (error: any) {
@@ -61,16 +65,20 @@ router.post(
       const inviterId = req.user.id;
 
       // Find user by email
-      const user = await User.findOne({ email });
+      const user = await prisma.user.findUnique({ where: { email } });
 
       if (!user) {
         return res.status(404).json({ message: 'Utilisateur non trouvé avec cet email' });
       }
 
       // Check if already a member
-      const existingMembership = await Membership.findOne({
-        userId: user._id,
-        organizationId: req.organizationId,
+      const existingMembership = await prisma.membership.findUnique({
+        where: {
+          userId_organizationId: {
+            userId: user.id,
+            organizationId: req.organizationId
+          }
+        }
       });
 
       if (existingMembership) {
@@ -78,12 +86,14 @@ router.post(
       }
 
       // Create membership
-      const membership = await Membership.create({
-        userId: user._id,
-        organizationId: req.organizationId,
-        roles: [role],
-        status: 'INVITED',
-        invitedBy: inviterId,
+      const membership = await prisma.membership.create({
+        data: {
+          userId: user.id,
+          organizationId: req.organizationId,
+          roles: [role],
+          status: 'INVITED',
+          invitedBy: inviterId,
+        }
       });
 
       res.status(201).json({
@@ -114,17 +124,22 @@ router.patch(
       const { membershipId } = req.params;
       const { roles } = req.body;
 
-      const membership = await Membership.findOneAndUpdate(
-        { _id: membershipId, organizationId: req.organizationId },
-        { $set: { roles } },
-        { new: true }
-      );
+      const membership = await prisma.membership.updateMany({
+        where: {
+          id: membershipId,
+          organizationId: req.organizationId
+        },
+        data: { roles }
+      });
 
-      if (!membership) {
+      if (membership.count === 0) {
         return res.status(404).json({ message: 'Membre introuvable' });
       }
 
-      res.json({ success: true, membership });
+      // Fetch the updated membership since updateMany doesn't return the doc
+      const updated = await prisma.membership.findUnique({ where: { id: membershipId } });
+
+      res.json({ success: true, membership: updated });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -145,12 +160,14 @@ router.delete(
     try {
       const { membershipId } = req.params;
 
-      const deleted = await Membership.findOneAndDelete({
-        _id: membershipId,
-        organizationId: req.organizationId,
+      const deleted = await prisma.membership.deleteMany({
+        where: {
+          id: membershipId,
+          organizationId: req.organizationId,
+        }
       });
 
-      if (!deleted) return res.status(404).json({ message: 'Membre introuvable' });
+      if (deleted.count === 0) return res.status(404).json({ message: 'Membre introuvable' });
 
       res.json({ success: true, message: 'Membre retiré' });
     } catch (error: any) {

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import AuditLog from '../models/AuditLog.js';
+import prisma from '../lib/prisma.js';
 import { complaintService } from '../services/complaintService.js';
 import { eventBus } from '../services/eventBus.js';
 import { PrivacyShield } from '../utils/privacyShield.js';
@@ -57,13 +57,15 @@ export class ComplaintController {
       // --- Privacy Shield (SOC 2 Implementation) ---
       const userRole = (req as any).user?.role;
       if (userRole !== 'admin' && userRole !== 'super_admin' && userRole !== 'auditor') {
-          if (complaint.phone) complaint.phone = PrivacyShield.maskPhone(complaint.phone);
-          if (complaint.email) complaint.email = PrivacyShield.maskEmail(complaint.email);
-          if (complaint.reporterAddress) complaint.reporterAddress = 'Masqué (Confidentialité)';
-          if (complaint.reporterLocation) {
-              const blurred = PrivacyShield.blurLocation(complaint.reporterLocation.latitude, complaint.reporterLocation.longitude);
-              complaint.reporterLocation.latitude = blurred.lat;
-              complaint.reporterLocation.longitude = blurred.lng;
+          const rep = complaint as any;
+          if (rep.phone) rep.phone = PrivacyShield.maskPhone(rep.phone);
+          if (rep.email) rep.email = PrivacyShield.maskEmail(rep.email);
+          if (rep.reporterAddress) rep.reporterAddress = 'Masqué (Confidentialité)';
+          if (rep.reporterLocation) {
+              const loc = rep.reporterLocation as any;
+              const blurred = PrivacyShield.blurLocation(loc.latitude, loc.longitude);
+              loc.latitude = blurred.lat;
+              loc.longitude = blurred.lng;
           }
       }
 
@@ -79,7 +81,7 @@ export class ComplaintController {
    */
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?._id;
+      const userId = (req as any).user?.id;
       const organizationId = (req as any).organizationId;
       const complaintData = {
         ...req.body,
@@ -91,20 +93,22 @@ export class ComplaintController {
       // Create Method
       // Audit Log
       if (userId) {
-        await AuditLog.create({
-          action: 'CREATE_TICKET',
-          userId: userId,
-          targetId: (complaint as any)._id,
-          targetType: 'Complaint',
-          details: { title: req.body.title, category: req.body.category },
-          ipAddress: req.ip,
+        await prisma.auditLog.create({
+          data: {
+            action: 'DATA_CREATE',
+            userId: userId,
+            targetId: (complaint as any).id,
+            targetType: 'Complaint',
+            details: { event: 'CREATE_TICKET', title: req.body.title, category: req.body.category },
+            ipAddress: req.ip,
+          }
         });
       }
 
       // ... inside create method
       // Kafka Event
       await eventBus.publish('complaint-events', 'COMPLAINT_CREATED', {
-        complaintId: (complaint as any)._id,
+        complaintId: (complaint as any).id,
         userId: userId,
         title: req.body.title, // Add Title
         category: req.body.category,
@@ -138,7 +142,7 @@ export class ComplaintController {
         await eventBus.publish('complaint-events', 'COMPLAINT_STATUS_UPDATED', {
           complaintId: req.params.id,
           status: req.body.status,
-          updatedBy: (req as any).user?._id,
+          updatedBy: (req as any).user?.id,
           timestamp: new Date(),
         });
       }
@@ -181,7 +185,7 @@ export class ComplaintController {
    */
   async approve(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?._id;
+      const userId = (req as any).user?.id;
       const organizationId = (req as any).organizationId;
 
       const complaint = await complaintService.approveComplaint(
@@ -192,19 +196,21 @@ export class ComplaintController {
 
       // Audit Log
       if (userId) {
-        await AuditLog.create({
-          action: 'APPROVE_COMPLAINT',
-          userId: userId,
-          targetId: complaint._id,
-          targetType: 'Complaint',
-          details: { number: complaint.number, title: complaint.title },
-          ipAddress: req.ip,
+        await prisma.auditLog.create({
+          data: {
+            action: 'DATA_UPDATE',
+            userId: userId,
+            targetId: (complaint as any).id,
+            targetType: 'Complaint',
+            details: { event: 'APPROVE_COMPLAINT', number: complaint.number, title: complaint.title },
+            ipAddress: req.ip,
+          }
         });
       }
 
       // Kafka Event
       await eventBus.publish('complaint-events', 'COMPLAINT_APPROVED', {
-        complaintId: complaint._id,
+        complaintId: complaint.id,
         approvedBy: userId,
         status: 'en cours',
         timestamp: new Date(),
@@ -222,7 +228,7 @@ export class ComplaintController {
    */
   async reject(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user?._id;
+      const userId = (req as any).user?.id;
       const organizationId = (req as any).organizationId;
       const { rejectionReason } = req.body;
 
@@ -239,23 +245,26 @@ export class ComplaintController {
 
       // Audit Log
       if (userId) {
-        await AuditLog.create({
-          action: 'REJECT_COMPLAINT',
-          userId: userId,
-          targetId: complaint._id,
-          targetType: 'Complaint',
-          details: {
-            number: complaint.number,
-            title: complaint.title,
-            rejectionReason,
-          },
-          ipAddress: req.ip,
+        await prisma.auditLog.create({
+          data: {
+            action: 'DATA_UPDATE',
+            userId: userId,
+            targetId: (complaint as any).id,
+            targetType: 'Complaint',
+            details: {
+              event: 'REJECT_COMPLAINT',
+              number: (complaint as any).number,
+              title: (complaint as any).title,
+              rejectionReason,
+            },
+            ipAddress: req.ip,
+          }
         });
       }
 
       // Kafka Event
       await eventBus.publish('complaint-events', 'COMPLAINT_REJECTED', {
-        complaintId: complaint._id,
+        complaintId: complaint.id,
         rejectedBy: userId,
         rejectionReason,
         status: 'rejetée',

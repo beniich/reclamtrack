@@ -13,7 +13,6 @@ const ALWAYS_REQUIRED: string[] = ['PORT', 'JWT_SECRET', 'JWT_REFRESH_SECRET', '
 
 /** Required only when not in demo mode */
 const REQUIRED_IN_PRODUCTION: string[] = [
-  'MONGODB_URI',
   'SMTP_HOST',
   'SMTP_PORT',
   'SMTP_USER',

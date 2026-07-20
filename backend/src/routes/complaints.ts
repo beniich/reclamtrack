@@ -53,10 +53,10 @@ router.put(
   '/:id',
   requireRole(['ADMIN', 'OWNER', 'TECH_LEAD', 'AGENT']),
   [
-    param('id').isMongoId(),
+    param('id').isUUID(),
     body('status').optional().isIn(['nouvelle', 'en cours', 'résolue', 'fermée', 'rejetée']),
-    body('assignedTeamId').optional().isMongoId(),
-    body('technicianId').optional().isMongoId(),
+    body('assignedTeamId').optional().isUUID(),
+    body('technicianId').optional().isUUID(),
   ],
   validator,
   complaintController.update.bind(complaintController)
@@ -66,7 +66,7 @@ router.put(
 router.delete(
   '/:id',
   requireRole(['ADMIN', 'OWNER']),
-  [param('id').isMongoId()],
+  [param('id').isUUID()],
   validator,
   complaintController.delete.bind(complaintController)
 );
@@ -75,7 +75,7 @@ router.delete(
 router.post(
   '/:id/approve',
   requireRole(['ADMIN', 'OWNER', 'TECH_LEAD']),
-  [param('id').isMongoId()],
+  [param('id').isUUID()],
   validator,
   complaintController.approve.bind(complaintController)
 );
@@ -85,7 +85,7 @@ router.post(
   '/:id/reject',
   requireRole(['ADMIN', 'OWNER', 'TECH_LEAD']),
   [
-    param('id').isMongoId(),
+    param('id').isUUID(),
     body('rejectionReason').notEmpty().withMessage('Rejection reason is required').trim().escape(),
   ],
   validator,

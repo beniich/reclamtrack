@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_dummy_build_key';
 
 // Plan IDs → Stripe Price IDs
 const PLAN_PRICES: Record<string, string | undefined> = {

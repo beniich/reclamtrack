@@ -1,0 +1,564 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  admin
+  dispatcher
+  staff
+  citizen
+  technician
+}
+
+enum AuthProvider {
+  local
+  google
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  TECH_LEAD
+  TECHNICIAN
+  MEMBER
+  VIEWER
+  MODERATOR
+  EDITOR
+  VALIDATOR
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  PAST_DUE
+  CANCELED
+}
+
+enum ComplaintStatus {
+  nouvelle
+  en_cours
+  en_attente
+  planifie
+  resolue
+  fermee
+  rejetee
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  REGISTER
+  DATA_ACCESS
+  DATA_CREATE
+  DATA_UPDATE
+  DATA_DELETE
+  PERMISSION_CHANGE
+  SYSTEM_EVENT
+  EXPORT
+  IMPORT
+  API_KEY_CREATE
+  API_KEY_REVOKE
+  MFA_ENABLE
+  MFA_DISABLE
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+}
+
+enum AuditCategory {
+  AUTH
+  DATA
+  SYSTEM
+  COMPLIANCE
+  SECURITY
+}
+
+enum AuditSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+  PARTIAL
+}
+
+// ─── Core Models ─────────────────────────────────────────────────────────────
+
+model User {
+  id                     String       @id @default(uuid())
+  name                   String?
+  email                  String       @unique
+  password               String?
+  role                   UserRole     @default(staff)
+  googleId               String?      @unique
+  avatar                 String?
+  isEmailVerified        Boolean      @default(false)
+  emailVerificationToken String?
+  resetPasswordToken     String?
+  resetPasswordExpires   DateTime?
+  authProvider           AuthProvider @default(local)
+
+  // SOC 2 IAM
+  mfaEnabled         Boolean  @default(false)
+  mfaSecret          String?
+  mfaBackupCodes     String[]
+  lastLoginAt        DateTime?
+  lastLoginIp        String?
+  failedLoginCount   Int      @default(0)
+  lockedUntil        DateTime?
+  passwordChangedAt  DateTime?
+  passwordHistory    String[]
+  activeSessions     Json?    // Array of session objects
+
+  organizationId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  organization  Organization? @relation("OrgMembers", fields: [organizationId], references: [id])
+  memberships   Membership[]
+  ownedOrgs     Organization[] @relation("OrgOwner")
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+  complaints    Complaint[]    @relation("ComplaintTechnician")
+
+  @@index([email])
+  @@index([organizationId])
+}
+
+model Organization {
+  id       String  @id @default(uuid())
+  name     String
+  slug     String  @unique
+  ownerId  String
+  logo     String?
+  settings Json?   // { theme, locale, timezone, exportStorage, ... }
+
+  // Subscription embedded as JSON for simplicity
+  subscriptionPlan           SubscriptionPlan   @default(FREE)
+  subscriptionStatus         SubscriptionStatus @default(TRIAL)
+  subscriptionStripeId       String?
+  subscriptionExpiresAt      DateTime?
+  subscriptionMaxUsers       Int                @default(5)
+  subscriptionMaxTickets     Int                @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner       User         @relation("OrgOwner", fields: [ownerId], references: [id])
+  members     User[]       @relation("OrgMembers")
+  memberships Membership[]
+  complaints  Complaint[]
+  auditLogs   AuditLog[]
+
+  @@index([slug])
+  @@index([ownerId])
+}
+
+model Membership {
+  id             String           @id @default(uuid())
+  userId         String
+  organizationId String
+  roles          MembershipRole[]
+  status         MembershipStatus @default(ACTIVE)
+  joinedAt       DateTime         @default(now())
+  invitedBy      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, status])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  action         AuditAction
+  userId         String?
+  targetId       String?
+  targetType     String?
+  organizationId String?
+  category       AuditCategory @default(SYSTEM)
+  severity       AuditSeverity @default(INFO)
+  outcome        AuditOutcome  @default(SUCCESS)
+  details        Json?
+  ipAddress      String?
+  userAgent      String?
+  requestId      String?
+  createdAt      DateTime      @default(now())
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ─── Complaint (Réclamation) ──────────────────────────────────────────────────
+
+model Complaint {
+  id             String          @id @default(uuid())
+  number         String          @unique
+  organizationId String
+  
+  // Step 1
+  category       String
+  subcategory    String
+  priority       Priority        @default(medium)
+  urgency        Int             @default(3)
+  impact         Int             @default(3)
+  title          String
+  description    String
+
+  // Step 2 — Location
+  address        String
+  city           String
+  district       String
+  postalCode     String?
+  latitude       Float?
+  longitude      Float?
+  location       Json?           // { latitude, longitude }
+
+  // Step 3 — Files
+  photos         String[]
+  documents      Json?           // [{ name, url }]
+  audioNote      String?
+
+  // Step 4 — Reporter
+  isAnonymous      Boolean      @default(false)
+  firstName        String?
+  lastName         String?
+  email            String?
+  phone            String?
+  reporterAddress  String?
+  reporterLocation Json?        // { latitude, longitude, accuracy }
+  reporterMetadata Json?        // { browser, os, preferredContactChannel }
+
+  // Workflow
+  status           ComplaintStatus @default(nouvelle)
+  assignedTeamId   String?
+  technicianId     String?
+  assetId          String?
+  assignedAt       DateTime?
+  rejectionReason  String?
+  timeline         Json?           // [{ eventType, message, createdAt, authorId }]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  technician   User?        @relation("ComplaintTechnician", fields: [technicianId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([number])
+}
+
+// ─── Other models (simplified — JSON fields for complex embedded docs) ────────
+
+model ITTicket {
+  id             String   @id @default(uuid())
+  organizationId String
+  title          String
+  description    String
+  status         String   @default("open")
+  priority       String   @default("medium")
+  category       String?
+  assignedTo     String?
+  requesterId    String?
+  attachments    String[]
+  comments       Json?
+  tags           String[]
+  slaDeadline    DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String?
+  type           String
+  title          String
+  message        String
+  isRead         Boolean  @default(false)
+  data           Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  organizationId String
+  senderId       String
+  content        String
+  type           String   @default("text")
+  attachments    String[]
+  readBy         String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Team {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  members        String[]
+  leaderId       String?
+  specialization String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Intervention {
+  id             String    @id @default(uuid())
+  organizationId String
+  complaintId    String?
+  technicianId   String?
+  title          String
+  description    String?
+  status         String    @default("planifiée")
+  priority       String    @default("medium")
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  notes          String?
+  photos         String[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organizationId])
+}
+
+model InventoryItem {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  sku            String?
+  category       String?
+  quantity       Int      @default(0)
+  unit           String?
+  minQuantity    Int      @default(0)
+  location       String?
+  supplier       String?
+  cost           Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model KnowledgeArticle {
+  id             String   @id @default(uuid())
+  organizationId String
+  title          String
+  content        String
+  category       String?
+  tags           String[]
+  authorId       String?
+  isPublished    Boolean  @default(false)
+  views          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Feedback {
+  id             String   @id @default(uuid())
+  organizationId String
+  complaintId    String?
+  userId         String?
+  rating         Int
+  comment        String?
+  category       String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+}
+
+model Staff {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String?
+  name           String
+  email          String?
+  phone          String?
+  role           String?
+  department     String?
+  skills         String[]
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Leave {
+  id             String    @id @default(uuid())
+  organizationId String
+  userId         String
+  type           String
+  status         String    @default("pending")
+  startDate      DateTime
+  endDate        DateTime
+  reason         String?
+  approvedBy     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organizationId, userId])
+}
+
+model PlanningSlot {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String?
+  title          String
+  start          DateTime
+  end            DateTime
+  type           String?
+  data           Json?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+}
+
+model SecurityEvent {
+  id             String   @id @default(uuid())
+  organizationId String?
+  type           String
+  severity       String   @default("medium")
+  description    String
+  ipAddress      String?
+  userId         String?
+  metadata       Json?
+  resolved       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+model ApiKey {
+  id             String    @id @default(uuid())
+  organizationId String
+  userId         String
+  name           String
+  keyHash        String    @unique
+  prefix         String
+  scopes         String[]
+  isActive       Boolean   @default(true)
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([keyHash])
+}
+
+model WorkOrder {
+  id             String    @id @default(uuid())
+  organizationId String
+  title          String
+  description    String?
+  status         String    @default("open")
+  priority       String    @default("medium")
+  assignedTo     String?
+  assetId        String?
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  notes          Json?
+  parts          Json?
+  laborHours     Float?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organizationId])
+}
+
+model Asset {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  code           String?
+  type           String?
+  category       String?
+  criticality    String?  // A, B, C
+  status         String   @default("operational")
+  location       String?
+  serialNumber   String?
+  manufacturer   String?
+  model          String?
+  purchaseDate   DateTime?
+  warrantyExpiry DateTime?
+  specifications Json?
+  maintenanceData Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}

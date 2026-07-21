@@ -54,6 +54,7 @@
     "clsx": "^2.1.0",
     "date-fns": "^2.30.0",
     "file-saver": "^2.0.5",
+    "firebase": "^12.16.0",
     "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
@@ -88,7 +89,8 @@
     "tailwind-merge": "^2.2.0",
     "xlsx": "^0.18.5",
     "zod": "^3.22.0",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "firebase": "^11.10.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -104,5 +106,9 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
     "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
+

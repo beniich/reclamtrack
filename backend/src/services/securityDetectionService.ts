@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, AuditAction } from '@prisma/client';
 const prisma = new PrismaClient();
 import { logger } from '../utils/logger.js';
 
@@ -14,9 +14,7 @@ export class SecurityDetectionService {
             
             const failedAttempts = await prisma.auditLog.count({
                 where: {
-                    details: { path: ['ipAddress'], equals: ipAddress },
-                    action: 'USER_LOGIN',
-                    details: { path: ['outcome'], equals: 'FAILURE' },
+                    action: AuditAction.LOGIN,
                     createdAt: { gte: fifteenMinsAgo }
                 }
             });
@@ -35,25 +33,20 @@ export class SecurityDetectionService {
      */
     async detectSessionAnomaly(userId: string, sessionId: string, currentIp: string, lastIp?: string) {
         if (lastIp && currentIp !== lastIp) {
-            const event = new SecurityEvent({
-                type: 'ANOMALY',
-                severity: 'MEDIUM',
-                affectedUsers: [userId],
-                sourceIp: currentIp,
-                description: `Session IP change detected: User ${userId} switched from ${lastIp} to ${currentIp} in session ${sessionId}`,
-                evidence: { sessionId, previousIp: lastIp, currentIp }
-            });
-            await event.save();
-            await prisma.securityEvent.create({
-                data: {
-                    type: 'ANOMALY',
-                    severity: 'MEDIUM',
-                    affectedUsers: [userId],
-                    sourceIp: currentIp,
-                    description: `Session IP change detected: User ${userId} switched from ${lastIp} to ${currentIp} in session ${sessionId}`,
-                    evidence: { sessionId, previousIp: lastIp, currentIp }
-                }
-            });
+            try {
+                await prisma.securityEvent.create({
+                    data: {
+                        type: 'ANOMALY',
+                        severity: 'MEDIUM',
+                        userId: userId,
+                        ipAddress: currentIp,
+                        description: `Session IP change detected: User ${userId} switched from ${lastIp} to ${currentIp} in session ${sessionId}`,
+                        metadata: { sessionId, previousIp: lastIp, currentIp }
+                    }
+                });
+            } catch (e) {
+                logger.error('Could not persist SecurityEvent:', e);
+            }
             logger.warn(`🚨 SECURITY EVENT: Session hijacking risk (IP jump) for user ${userId}`);
         }
     }
@@ -61,7 +54,7 @@ export class SecurityDetectionService {
     /**
      * Checks for access outside designated business hours or from unexpected locations
      */
-    async detectAnomalousAccess(userId: string, ipAddress: string, action: string) {
+    async detectAnomalousAccess(userId: string, ipAddress: string, action: AuditAction) {
         try {
             const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
             const events = await prisma.auditLog.count({

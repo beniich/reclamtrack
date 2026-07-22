@@ -21,12 +21,7 @@ declare global {
       /** Organization ID extracted from x-organization-id header */
       organizationId?: string;
       /** Populated membership document (set by requireOrganization) */
-      membership?: Document & {
-        roles: string[];
-        status: string;
-        isAdmin(): boolean;
-        hasRole(role: string): boolean;
-      };
+      membership?: any;
       /** API key document (set by requireApiKey) */
       apiKey?: {
         orgId: string;

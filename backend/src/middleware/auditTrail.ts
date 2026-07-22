@@ -26,7 +26,7 @@ export const auditTrail = (category: 'AUTH' | 'DATA_ACCESS' | 'CONFIG_CHANGE' | 
              try {
                  const severityMap: any = { INFO: 'LOW', LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH', CRITICAL: 'CRITICAL' };
                  const mappedSeverity = severityMap[severity] || 'LOW';
-                 const actionCode = (category === 'AUTH') ? (outcome === 'SUCCESS' ? 'USER_LOGIN' : 'USER_LOGOUT') : 'DATA_ACCESS';
+                 const actionCode = (category === 'AUTH') ? (outcome === 'SUCCESS' ? 'LOGIN' : 'LOGOUT') : 'DATA_ACCESS';
 
                  await prisma.auditLog.create({
                      data: {
@@ -59,7 +59,7 @@ export const auditTrail = (category: 'AUTH' | 'DATA_ACCESS' | 'CONFIG_CHANGE' | 
                      }
 
                      if (userId) {
-                         await securityDetectionService.detectAnomalousAccess(userId.toString(), req.ip || '0.0.0.0', action);
+                         await securityDetectionService.detectAnomalousAccess(userId.toString(), req.ip || '0.0.0.0', actionCode);
                      }
                  }
              } catch (error) {

@@ -10,6 +10,7 @@ coverage/
 
 # Production Build outputs
 dist/
+dev-dist/
 build/
 cpanel-build/
 *.dist

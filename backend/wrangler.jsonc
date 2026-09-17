@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "recl",
-      "database_name": "recl",
-      "database_id": "9bb0660e-8f5b-4ec5-a0bc-97996f014e3e"
+      "database_name": "reclamtrack",
+      "database_id": "9bb0660e-5caa-4138-b015-933753c5b61d"
     }
   ]
 }

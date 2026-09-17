@@ -1,4 +1,43 @@
-import { PrismaClient, AuditAction } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+export type AuditAction =
+    | 'LOGIN'
+    | 'LOGOUT'
+    | 'REGISTER'
+    | 'DATA_ACCESS'
+    | 'DATA_CREATE'
+    | 'DATA_UPDATE'
+    | 'DATA_DELETE'
+    | 'PERMISSION_CHANGE'
+    | 'SYSTEM_EVENT'
+    | 'EXPORT'
+    | 'IMPORT'
+    | 'API_KEY_CREATE'
+    | 'API_KEY_REVOKE'
+    | 'MFA_ENABLE'
+    | 'MFA_DISABLE'
+    | 'PASSWORD_CHANGE'
+    | 'PASSWORD_RESET';
+
+export const AuditAction = {
+    LOGIN: 'LOGIN',
+    LOGOUT: 'LOGOUT',
+    REGISTER: 'REGISTER',
+    DATA_ACCESS: 'DATA_ACCESS',
+    DATA_CREATE: 'DATA_CREATE',
+    DATA_UPDATE: 'DATA_UPDATE',
+    DATA_DELETE: 'DATA_DELETE',
+    PERMISSION_CHANGE: 'PERMISSION_CHANGE',
+    SYSTEM_EVENT: 'SYSTEM_EVENT',
+    EXPORT: 'EXPORT',
+    IMPORT: 'IMPORT',
+    API_KEY_CREATE: 'API_KEY_CREATE',
+    API_KEY_REVOKE: 'API_KEY_REVOKE',
+    MFA_ENABLE: 'MFA_ENABLE',
+    MFA_DISABLE: 'MFA_DISABLE',
+    PASSWORD_CHANGE: 'PASSWORD_CHANGE',
+    PASSWORD_RESET: 'PASSWORD_RESET'
+} as const;
 const prisma = new PrismaClient();
 import { logger } from '../utils/logger.js';
 
@@ -60,7 +99,7 @@ export class SecurityDetectionService {
             const events = await prisma.auditLog.count({
                 where: {
                     userId,
-                    action: action,
+                    action: action as any,
                     createdAt: { gte: oneHourAgo }
                 }
             });

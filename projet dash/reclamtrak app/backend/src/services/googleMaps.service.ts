@@ -28,7 +28,7 @@ export class GoogleMapsService {
                     origins: [origin],
                     destinations: [destination],
                     mode: TravelMode.driving,
-                    departure_time: 'now', // Prise en compte du trafic temps réel
+                    departure_time: new Date(), // Prise en compte du trafic temps réel
                     key: this.apiKey
                 }
             });

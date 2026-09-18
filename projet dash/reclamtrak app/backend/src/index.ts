@@ -64,7 +64,8 @@ import sshRoutes from './routes/ssh-management.js';
 envValidator();
 
 const app = express();
-const httpServer = createServer(app);
+// HTTP server is not supported in Cloudflare Workers
+// const httpServer = createServer(app);
 
 // Security middleware
 app.use(requestId);
@@ -191,7 +192,7 @@ app.post('/api/test-notification', authenticate, requireAdmin, async (req, res) 
 app.use(errorHandler);
 
 // Initialize Socket.IO
-initSocket(httpServer);
+// initSocket(httpServer); // Socket.IO relies on http.createServer which is not supported in CF Workers
 
 // Start server
 import { startSagaConsumer } from './services/sagaConsumer.js';
@@ -208,15 +209,27 @@ const start = async () => {
     } else {
       console.log('⚠️ Kafka Disabled. Backend ready for HTTP events.');
     }
-
-    const PORT = process.env.PORT || 5001;
-    httpServer.listen(PORT, () => {
-      logger.info(`🚀 API ReclamTrack écoute sur le port ${PORT}`);
-    });
+    logger.info('✅ Backend initialized for Cloudflare Workers.');
   } catch (err) {
     logger.error('❌ Échec démarrage serveur', err);
-    process.exit(1);
+    throw err;
   }
 };
 
-start();
+// Start background services (DB, etc.) - Note: this is tricky in serverless
+// start();
+
+// Cloudflare Workers Entry Point
+export default {
+  async fetch(request: Request, env: any, ctx: any) {
+    // ⚠️ IMPORTANT: Express routing does not work natively on Cloudflare Workers.
+    // This is a placeholder. To make routes work, either migrate to Hono or use an adapter.
+    return new Response(JSON.stringify({ 
+      status: 'ok', 
+      service: 'ReclamTrack API (Cloudflare Workers)',
+      warning: 'Express routing is currently disabled. Migration to Hono required.'
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+};

@@ -23,7 +23,7 @@ export class FleetTrafficAgent {
         
         logger.info(`🤖 Agent de Trafic : Analyse de ${technicians.length} techniciens pour le ticket ${complaint.number}`);
 
-        const recommendations = [];
+        const recommendations: any[] = [];
 
         for (const tech of technicians) {
             // Dans un cas réel, tech.lastKnownLocation serait mis à jour via une app mobile

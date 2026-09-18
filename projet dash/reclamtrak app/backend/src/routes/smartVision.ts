@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/analysis/:id', authenticate, async (req, res, next) => {
     try {
-        const insights = await SmartTicketService.generateSmartInsights(req.params.id);
+        const insights = await SmartTicketService.generateSmartInsights(req.params.id as string);
         return successResponse(res, insights);
     } catch (err) {
         next(err);

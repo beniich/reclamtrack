@@ -59,7 +59,7 @@ ${bruteForceAttempts.length > 0 ?
 
 ### Accès aux données confidentielles (ISO 27001)
 ${sensitiveAccess.length > 0 ? 
-    sensitiveAccess.map(s => `- **${(s.userId as any)?.name || 'Inconnu'}** a accédé à un actif critique le ${s.createdAt.toLocaleString()} (IP: ${s.ipAddress})`).join('\n') : 
+    sensitiveAccess.map(s => `- **${(s.userId as any)?.name || 'Inconnu'}** a accédé à un actif critique le ${(s as any).createdAt?.toLocaleString()} (IP: ${s.ipAddress})`).join('\n') : 
     "✅ Aucun accès anormal aux actifs restreints."}
 
 ## 3. Score de Conformité SOC 2

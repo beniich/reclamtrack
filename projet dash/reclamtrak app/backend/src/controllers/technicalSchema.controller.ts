@@ -6,7 +6,7 @@ import TechnicalSchema from '../models/TechnicalSchema.js';
 // @route   GET /api/technical-schemas
 // @access  Private
 export const getSchemas = asyncHandler(async (req: Request, res: Response) => {
-  const schemas = await TechnicalSchema.find({ organizationId: req.user.organizationId })
+  const schemas = await TechnicalSchema.find({ organizationId: (req as any).user.organizationId })
     .populate('createdBy', 'name email avatar')
     .sort('-createdAt');
 
@@ -23,7 +23,7 @@ export const getSchemas = asyncHandler(async (req: Request, res: Response) => {
 export const getSchema = asyncHandler(async (req: Request, res: Response) => {
   const schema = await TechnicalSchema.findOne({
     _id: req.params.id,
-    organizationId: req.user.organizationId,
+    organizationId: (req as any).user.organizationId,
   }).populate('createdBy', 'name email');
 
   if (!schema) {
@@ -42,8 +42,8 @@ export const getSchema = asyncHandler(async (req: Request, res: Response) => {
 // @access  Private
 export const createSchema = asyncHandler(async (req: Request, res: Response) => {
   // Add user to req.body
-  req.body.createdBy = req.user.id;
-  req.body.organizationId = req.user.organizationId;
+  req.body.createdBy = (req as any).user.id;
+  req.body.organizationId = (req as any).user.organizationId;
 
   const schema = await TechnicalSchema.create(req.body);
 
@@ -59,7 +59,7 @@ export const createSchema = asyncHandler(async (req: Request, res: Response) => 
 export const updateSchema = asyncHandler(async (req: Request, res: Response) => {
   let schema = await TechnicalSchema.findOne({
     _id: req.params.id,
-    organizationId: req.user.organizationId,
+    organizationId: (req as any).user.organizationId,
   });
 
   if (!schema) {
@@ -68,7 +68,7 @@ export const updateSchema = asyncHandler(async (req: Request, res: Response) => 
   }
 
   // Make sure user is schema owner or admin
-  if (schema.createdBy.toString() !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+  if (schema.createdBy.toString() !== (req as any).user.id && (req as any).user.role !== 'admin' && (req as any).user.role !== 'superadmin') {
     res.status(403);
     throw new Error('Vous n\'êtes pas autorisé à modifier ce schéma');
   }
@@ -90,7 +90,7 @@ export const updateSchema = asyncHandler(async (req: Request, res: Response) => 
 export const deleteSchema = asyncHandler(async (req: Request, res: Response) => {
   const schema = await TechnicalSchema.findOne({
     _id: req.params.id,
-    organizationId: req.user.organizationId,
+    organizationId: (req as any).user.organizationId,
   });
 
   if (!schema) {
@@ -99,7 +99,7 @@ export const deleteSchema = asyncHandler(async (req: Request, res: Response) => 
   }
 
   // Make sure user is schema owner or admin
-  if (schema.createdBy.toString() !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+  if (schema.createdBy.toString() !== (req as any).user.id && (req as any).user.role !== 'admin' && (req as any).user.role !== 'superadmin') {
     res.status(403);
     throw new Error('Vous n\'êtes pas autorisé à supprimer ce schéma');
   }

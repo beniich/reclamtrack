@@ -3,7 +3,7 @@ import { Team } from '../models/Team.js';
 import { autoAssignComplaint } from './schedulingService.js';
 import notificationService from './socketService.js';
 import { getModel } from '../utils/modelRegistry.js';
-import { Connection } from 'mongoose';
+import { Connection, Types } from 'mongoose';
 
 export class ComplaintService {
   /**

@@ -7,10 +7,16 @@
  * @module backend/services
  */
 
-import { NodeSSH } from 'node-ssh';
+// import { NodeSSH } from 'node-ssh';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 
+// MOCKED for Cloudflare Workers
+class NodeSSH {
+  async connect() { return true; }
+  async execCommand() { return { code: 0, stdout: 'mocked stdout', stderr: '' }; }
+  dispose() {}
+}
 const ssh = new NodeSSH();
 
 /**
@@ -22,9 +28,9 @@ const getSSHConfig = () => {
   }
 
   return {
-    host: process.env.SSH_HOST!,
-    username: process.env.SSH_USER!,
-    privateKeyPath: process.env.SSH_PRIVATE_KEY_PATH!, // Must be path to ed25519/rsa key
+    host: process.env.SSH_HOST || 'mocked',
+    username: process.env.SSH_USER || 'mocked',
+    privateKeyPath: process.env.SSH_PRIVATE_KEY_PATH || 'mocked', // Must be path to ed25519/rsa key
   };
 };
 
@@ -35,22 +41,14 @@ const getSSHConfig = () => {
  * @returns stdout string
  */
 const executeSafe = async (command: string, params: string[] = []): Promise<string> => {
-  const config = getSSHConfig();
+  // const config = getSSHConfig();
   try {
-    await ssh.connect(config);
+    // await ssh.connect(config);
     const fullCommand = params.length > 0 ? `${command} ${params.join(' ')}` : command;
-    const result = await ssh.execCommand(fullCommand);
-
-    if (result.code !== 0 && result.code !== null) {
-      logger.error(`[SSH] Command failed (${result.code}): ${result.stderr}`);
-      throw new AppError(
-        `Échec d'exécution de la commande SSH: ${result.stderr}`,
-        500,
-        'SSH_EXECUTION_ERROR'
-      );
-    }
-
-    return result.stdout.trim();
+    // const result = await ssh.execCommand(fullCommand);
+    logger.warn(`[SSH] MOCKED EXECUTION (Workers Compat): ${fullCommand}`);
+    
+    return 'mocked stdout';
   } catch (err: any) {
     logger.error(`[SSH] Connection/execution error: ${err.message}`);
     throw new AppError(`Erreur de connexion SSH: ${err.message}`, 500, 'SSH_CONNECTION_ERROR');

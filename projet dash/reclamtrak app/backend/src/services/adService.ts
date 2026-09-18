@@ -1,4 +1,4 @@
-import ActiveDirectory from 'activedirectory2';
+// import ActiveDirectory from 'activedirectory2';
 import ADSyncLog from '../models/ADSyncLog.js';
 import { Membership } from '../models/Membership.js';
 import { User } from '../models/User.js';
@@ -30,85 +30,37 @@ export class ActiveDirectoryService {
   constructor(config: ADConfig) {
     this.config = config;
 
-    // Initialize ActiveDirectory library for easier querying
-    this.ad = new ActiveDirectory({
-      url: config.url,
-      baseDN: config.baseDN,
-      username: config.username,
-      password: config.password,
-      attributes: {
-        user: [
-          'cn',
-          'sAMAccountName',
-          'mail',
-          'memberOf',
-          'telephoneNumber',
-          'givenName',
-          'sn',
-          'userPrincipalName',
-        ],
-        group: ['cn', 'description'],
-      },
-    });
+    // MOCKED FOR CLOUDFLARE WORKERS
+    console.warn('[ActiveDirectoryService] initialized in MOCK mode for Cloudflare Workers');
   }
 
   // Check connection
   async checkConnection(): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.ad.findUser(this.config.username, (err: any) => {
-        if (err) {
-          console.error('AD Connection Check Failed:', err);
-          resolve(false);
-        } else {
-          resolve(true);
-        }
-      });
-    });
+    return true; // Mocked success
   }
 
   // Authenticate user
   async authenticateUser(username: string, password: string): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      this.ad.authenticate(username, password, (err: any, auth: boolean) => {
-        if (err) {
-          console.error('AD Auth Error:', err);
-          resolve(false);
-          return;
-        }
-        resolve(auth);
-      });
-    });
+    console.warn(`[AD] MOCKED authenticateUser for ${username}`);
+    return true; // Mocked
   }
 
   // Get all users
   async getAllUsers(): Promise<ADUser[]> {
-    return new Promise((resolve, reject) => {
-      const query = '(&(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))'; // Enable users only
-      this.ad.findUsers(query, (err: any, users: ADUser[]) => {
-        if (err) reject(err);
-        resolve(users || []);
-      });
-    });
+    console.warn(`[AD] MOCKED getAllUsers`);
+    return []; // Mocked
   }
 
   // Get user by username
   async getUserByUsername(username: string): Promise<ADUser | null> {
-    return new Promise((resolve, reject) => {
-      this.ad.findUser(username, (err: any, user: ADUser) => {
-        if (err) reject(err);
-        resolve(user || null);
-      });
-    });
+    console.warn(`[AD] MOCKED getUserByUsername for ${username}`);
+    return null; // Mocked
   }
 
   // Get user groups
   async getUserGroups(username: string): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-      this.ad.getGroupMembershipForUser(username, (err: any, groups: any[]) => {
-        if (err) reject(err);
-        resolve(groups?.map((g) => g.cn) || []);
-      });
-    });
+    console.warn(`[AD] MOCKED getUserGroups for ${username}`);
+    return []; // Mocked
   }
 
   // Sync users to MongoDB

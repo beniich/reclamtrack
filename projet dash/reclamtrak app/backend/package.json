@@ -13,6 +13,7 @@
     "test:watch": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch"
   },
   "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.4.2",
     "@reclamtrack/shared": "file:../shared",
     "@types/crypto-js": "^4.2.2",
     "@types/multer": "^2.1.0",

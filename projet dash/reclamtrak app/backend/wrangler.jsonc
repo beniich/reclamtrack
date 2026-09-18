@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "reclamtruck",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-21",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "recl",
+      "database_name": "reclamtrack",
+      "database_id": "9bb0660e-5caa-4138-b015-933753c5b61d"
+    }
+  ]
+}

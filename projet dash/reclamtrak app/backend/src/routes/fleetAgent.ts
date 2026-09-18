@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get('/optimize/:complaintId', authenticate, async (req, res, next) => {
     try {
-        const recommendations = await FleetTrafficAgent.recommendBestTeamForComplaint(req.params.complaintId);
+        const recommendations = await FleetTrafficAgent.recommendBestTeamForComplaint(req.params.complaintId as string);
         return successResponse(res, recommendations);
     } catch (err) {
         next(err);

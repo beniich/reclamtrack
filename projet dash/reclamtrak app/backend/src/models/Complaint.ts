@@ -68,7 +68,7 @@ export interface IComplaint extends Document {
   updatedAt: Date;
 }
 
-const ComplaintSchema: Schema = new Schema(
+export const ComplaintSchema: Schema = new Schema(
   {
     number: { type: String, unique: true }, // Auto-generated
 

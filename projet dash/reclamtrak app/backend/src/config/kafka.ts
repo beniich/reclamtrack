@@ -1,22 +1,27 @@
-import kafkajs from 'kafkajs';
-const { Kafka, logLevel } = kafkajs;
+// import kafkajs from 'kafkajs';
+// const { Kafka, logLevel } = kafkajs;
 
-const kafka = new Kafka({
-    clientId: 'reclamtrack-backend',
-    brokers: [(process.env.KAFKA_BROKER || 'localhost:9092')],
-    logLevel: logLevel.ERROR,
-});
+// MOCKED for Cloudflare Workers
+const kafka: any = {
+    producer: (...args: any[]) => ({
+        connect: async (...a: any[]) => {},
+        send: async (...a: any[]) => {},
+        disconnect: async (...a: any[]) => {}
+    }),
+    consumer: (...args: any[]) => ({
+        connect: async (...a: any[]) => {},
+        subscribe: async (...a: any[]) => {},
+        run: async (...a: any[]) => {},
+        disconnect: async (...a: any[]) => {}
+    })
+};
 
 export const producer = kafka.producer();
-export const consumer = kafka.consumer({ groupId: 'reclamtrack-backend-group' });
+export const consumer = kafka.consumer();
 
 export const connectKafka = async () => {
     try {
-        await producer.connect();
-        console.log('✅ Kafka Producer connected');
-
-        await consumer.connect();
-        console.log('✅ Kafka Consumer connected');
+        console.warn('⚠️  [Kafka] MOCKED connectKafka (Workers Compat)');
     } catch (error) {
         console.error('❌ Kafka connection error:', error);
     }

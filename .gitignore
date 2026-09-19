@@ -63,3 +63,12 @@ backend/test-*.d.ts.map
 backend/tests/*.js
 backend/tests/*.d.ts
 backend/tests/*.d.ts.map
+
+# Android keystore and local environment
+local.properties
+*.jks
+*.keystore
+mobile/.gradle/
+mobile/app/build/
+mobile/build/
+
